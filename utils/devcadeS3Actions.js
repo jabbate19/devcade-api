@@ -125,6 +125,20 @@ const getMediaS3Link = async (gameId, mediaType) => {
     return "";
 }
 
+/**
+ * Checks if game exists in the s3 bucket
+ * @param {*} gameId id of game bucket link being fetched
+ * @returns link for game's s3 bucket
+ */
+const getGameZipS3Link = async (gameId) => {
+    const s3 = new Minio.Client(minioClientConfig);
+    // check if bucket for gameId exists
+    if (await s3.bucketExists(`${config.S3_GAMES_BUCKET}/${gameId}/${gameId}.zip`)) {
+        return `https://${config.S3_ENDPOINT}/${config.S3_GAMES_BUCKET}/${gameId}/${gameId}.zip`;
+    }
+
+};
+
 const downloadMedia = async (gameId, mediaType) => {
     try {
         const s3 = new Minio.Client(minioClientConfig);
@@ -309,6 +323,7 @@ module.exports = {
     downloadMedias,
     downloadBanner, 
     downloadIcon,
+    getGameZipS3Link,
     getGamesBucketObjects,
     getAllBuckets,
     waitForGame,
