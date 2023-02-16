@@ -191,7 +191,7 @@ gamesRouter.get('/download/:gameId', async (req, res) => {
 
 // to be used by website for downloading files
 gamesRouter.get('/download/web/:gameId', async (req, res) => {
-    res.redirect(getGameZipS3Link(req.params.gameId));
+    res.redirect(s3utils.getGameZipS3Link(req.params.gameId));
 });
 
 gamesRouter.get('/download/icon/inline/:gameId', async (req, res) => {
