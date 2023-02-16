@@ -401,6 +401,7 @@ module.exports = {
     downloadIcon,
     downloadBanner,
     deleteGame,
+    getGameZipS3Link: devcadeS3.getGameZipS3Link,
     getIconS3Link: devcadeS3.getIconS3Link,
     getBannerS3Link: devcadeS3.getBannerS3Link,
     DOWNLOADS_DIR: devcadeS3.DOWNLOADS_DIR,

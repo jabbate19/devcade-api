@@ -12,8 +12,6 @@ const mime = require('mime-types');
 // utilities
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-const { getGameZipS3Link } = require('../utils/devcadeS3Actions');
-
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         if (!fs.existsSync(s3utils.UPLOADS_DIR)) {
