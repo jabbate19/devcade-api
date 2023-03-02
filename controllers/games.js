@@ -85,14 +85,6 @@ gamesRouter.post('/upload', upload.single('file'), async (req, res) => {
         }
         
         // if all of this succeeded, record game (title, s3 uuid, author name, game files hash value)        
-        
-        // TODO: REMOVE OLD UNPARAMETERIZED QUERY
-        // const query = 
-        //     "INSERT INTO " + 
-        //     "game(game_id, author_username, upload_date, game_name, hash, description) " +
-        //     `VALUES ('${file.filename.split('.')[0]}', '${author}', NOW(), '${game_name}', '${gameFileHash.hash}', '${game_description}');`;
-
-
         const query = sql("INSERT INTO " +
                 "game(game_id, author_username, upload_date, game_name, hash, description) " + 
                 "VALUES (:game_id, :author_username, NOW(), :game_name, :hash, :description);")
