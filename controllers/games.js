@@ -12,7 +12,6 @@ const mime = require('mime-types');
 // utilities
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         if (!fs.existsSync(s3utils.UPLOADS_DIR)) {
@@ -188,6 +187,11 @@ gamesRouter.get('/download/:gameId', async (req, res) => {
         // delete all files related to the game from the server since they have been sent to the user
         s3utils.deleteLocalFiles(gameId);
     }
+});
+
+// to be used by website for downloading files
+gamesRouter.get('/download/web/:gameId', async (req, res) => {
+    res.redirect(s3utils.getGameZipS3Link(req.params.gameId));
 });
 
 gamesRouter.get('/download/icon/inline/:gameId', async (req, res) => {

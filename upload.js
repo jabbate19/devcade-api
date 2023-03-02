@@ -6,23 +6,29 @@ const FormData = require('form-data');
 
 const upload = async () => {
 	try {
-		const file = fs.createReadStream('./BrickBreaker.zip');
-		const title = 'Brick Breaker';
+		// turn the (local) file into a filestream
+		const file = fs.createReadStream('./testsmall.zip');
+		const title = 'uploadTest';
 
+		// create the form data
 		const form = new FormData();
 		form.append('title', title);
 		form.append('file', file);
 
-			const response = await axios.post(
-				'http://localhost:3200/api/games/upload', 
-				form, 
-				{ headers: { ...form.getHeaders(), }
+		// request file upload
+		console.log("awaiting response....")
+		const response = await axios.post(
+			'http://localhost:8080/api/games/upload', 
+			form, 
+			{ headers: { ...form.getHeaders(), }
 		})
-			if (response.status === 200) {
-			    return 'Upload complete';        
-		    } else {
-                console.log(response);
-            }
+		console.log("response received!")
+		// await response
+		if (response.status === 200) {
+		    return 'Upload complete';        
+		} else {
+            console.log(response);
+        }
 	} catch (err) {
 		throw err;
 	}
