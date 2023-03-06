@@ -8,6 +8,7 @@ const s3utils = require('../utils/s3utils');
 const gamesRouter = require('express').Router();
 const Game = require('../models/game');
 const mime = require('mime-types');
+const sql = require('yesql').pg;
 
 // utilities
 const multer = require('multer');
@@ -84,10 +85,17 @@ gamesRouter.post('/upload', upload.single('file'), async (req, res) => {
         }
         
         // if all of this succeeded, record game (title, s3 uuid, author name, game files hash value)        
-        const query = 
-            "INSERT INTO " + 
-            "game(game_id, author_username, upload_date, game_name, hash, description) " +
-            `VALUES ('${file.filename.split('.')[0]}', '${author}', NOW(), '${game_name}', '${gameFileHash.hash}', '${game_description}');`;
+        const query = sql("INSERT INTO " +
+                "game(game_id, author_username, upload_date, game_name, hash, description) " + 
+                "VALUES (:game_id, :author_username, NOW(), :game_name, :hash, :description);")
+                ({
+                    game_id: file.filename.split('.')[0],
+                    author_username: author,
+                    game_name: game_name,
+                    hash: gameFileHash.hash,
+                    description: game_description
+                })
+
         console.log(query);
 
         // Success, so create game record in the database
@@ -133,7 +141,7 @@ gamesRouter.post('/upload', upload.single('file'), async (req, res) => {
     const gameId = req.params.gameId;
 
     // check to make sure the game exists
-    let query = `SELECT COUNT(*) as num_games FROM game WHERE game_id = '${gameId}'`;
+    let query = sql("SELECT COUNT(*) as num_games FROM game WHERE game_id = :game_id")({game_id: gameId});
 
     var pool = undefined;
     try {
@@ -143,7 +151,7 @@ gamesRouter.post('/upload', upload.single('file'), async (req, res) => {
             return res.status(400).send(`game with id does not exist: ${gameId}`);
         } else {
             // Remove game from database
-            query = `DELETE FROM game WHERE game_id = '${gameId}'`
+            query = sql("DELETE FROM game WHERE game_id = :game_id")({game_id: gameId});
             await pool.query(query);
         }
         // delete game from s3
