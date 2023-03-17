@@ -1,3 +1,7 @@
+# Devcade API
+
+This is the API that powers the website and the cabinet.
+
 - Download project and run `npm install`
 - Use `npm run dev` to start the development server.
 - If a `.env` file does not currently exist in the repo root directory, create one with:
