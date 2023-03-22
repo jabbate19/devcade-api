@@ -5,7 +5,7 @@ use actix_web::{
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::Endpoint;
 use devcade_api_rs::{
-    games::{self, GameData},
+    games::{self, GameData, GameUploadDoc},
     models::{AppState, Game},
 };
 use std::env;
@@ -35,7 +35,7 @@ async fn main() -> std::io::Result<()> {
             //games::update_icon,
         ),
         components(
-            schemas(GameData, Game)
+            schemas(GameData, Game, GameUploadDoc)
         ),
         tags(
             (name = "DevcadeAPI", description = "")

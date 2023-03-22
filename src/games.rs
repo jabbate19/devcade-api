@@ -72,6 +72,16 @@ pub struct GameUpload {
     author: Text<String>,
 }
 
+#[allow(dead_code)]
+#[derive(ToSchema)]
+pub struct GameUploadDoc {
+    #[schema(format = Binary)]
+    file: String,
+    title: String,
+    description: String,
+    author: String,
+}
+
 #[utoipa::path(
     context_path = "/games",
     responses(
@@ -171,7 +181,7 @@ async fn verify_and_upload(
 
 #[utoipa::path(
     context_path = "/games",
-    request_body(content=GameUpload, content_type="multipart/form-data", description="Multipart Form. Contains zip file of game data (banner.png, icon.png, and public folder) and JSON with name, desc, and author"),
+    request_body(content=GameUploadDoc, content_type="multipart/form-data", description="Multipart Form. Contains zip file of game data (banner.png, icon.png, and public folder) and JSON with name, desc, and author"),
     responses(
         (status = 201, description = "Created new game"),
         (status = 401, description = "Invalid/Missing API Key"),
@@ -238,7 +248,7 @@ pub async fn get_game(state: Data<AppState>, path: Path<(String,)>) -> impl Resp
 
 #[utoipa::path(
     context_path = "/games",
-    request_body(content=String, content_type="multipart/form-data", description="Multipart Form. Contains zip file of game data (banner.png, icon.png, and public folder) and JSON with name, desc, and author"),
+    request_body(content=GameUploadDoc, content_type="multipart/form-data", description="Multipart Form. Contains zip file of game data (banner.png, icon.png, and public folder) and JSON with name, desc, and author"),
     responses(
         (status = 200, description = "Updated game"),
         (status = 401, description = "Invalid/Missing API Key"),
