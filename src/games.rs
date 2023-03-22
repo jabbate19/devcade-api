@@ -2,7 +2,10 @@ use crate::{
     models::{AppState, Game},
     security::RequireApiKey,
 };
-use actix_multipart::form::{tempfile::TempFile, MultipartForm};
+use actix_multipart::form::{
+    text::Text,
+    tempfile::TempFile, MultipartForm
+};
 use actix_web::{
     delete, get, HttpResponse, Responder,post, put,
     web::{Data, Path},
@@ -64,7 +67,9 @@ pub struct GameData {
 #[derive(Debug, MultipartForm)]
 pub struct GameUpload {
     file: TempFile,
-    game_data: actix_multipart::form::json::Json<GameData>,
+    title: Text<String>,
+    description: Text<String>,
+    author: Text<String>,
 }
 
 #[utoipa::path(
@@ -186,23 +191,23 @@ pub async fn add_game(
             let date = Local::now().date_naive();
             match query("INSERT INTO game VALUES ($1, $2, $3, $4, $5, $6, $7)")
                 .bind(&uuid)
-                .bind(&form.game_data.author)
+                .bind(form.author.clone())
                 .bind(date)
-                .bind(&form.game_data.name)
+                .bind(form.title.clone())
                 .bind(&hash)
-                .bind(&form.game_data.description)
-                .bind(&form.game_data.authrequired)
+                .bind(form.description.clone())
+                .bind(false)
                 .execute(&state.db)
                 .await
             {
                 Ok(_) => HttpResponse::Created().json(Game {
                     game_id: uuid,
-                    author_username: form.game_data.author.clone(),
+                    author_username: form.author.clone(),
                     upload_date: date,
-                    game_name: form.game_data.name.clone(),
+                    game_name: form.title.clone(),
                     hash: hash,
-                    description: form.game_data.description.clone(),
-                    authrequired: form.game_data.authrequired,
+                    description: form.description.clone(),
+                    authrequired: false,
                 }),
                 Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
@@ -260,22 +265,22 @@ pub async fn edit_game(
                 match query(
                     "UPDATE game SET game_name = $1, description = $2, hash=$3, authrequired=$4 WHERE game_id = $5",
                 )
-                .bind(&form.game_data.name)
-                .bind(&form.game_data.description)
+                .bind(form.title.clone())
+                .bind(form.description.clone())
                 .bind(&hash)
-                .bind(&form.game_data.authrequired)
+                .bind(game.authrequired)
                 .bind(&id)
                 .execute(&state.db)
                 .await
                 {
                     Ok(_) => HttpResponse::Ok().json(Game {
                         game_id: id,
-                        author_username: form.game_data.author.clone(),
+                        author_username: game.author_username,
                         upload_date: game.upload_date,
-                        game_name: form.game_data.name.clone(),
+                        game_name: form.title.clone(),
                         hash: hash,
-                        description: form.game_data.description.clone(),
-                        authrequired: form.game_data.authrequired,
+                        description: form.description.clone(),
+                        authrequired: game.authrequired,
                     }),
                     Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
                 }
