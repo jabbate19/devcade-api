@@ -10,10 +10,12 @@ use actix_web::{
 use aws_sdk_s3::{Client, types::ByteStream};
 use chrono::prelude::*;
 use data_encoding::HEXLOWER;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::{query, query_as};
 use std::{
+    env,
     error::Error,
     fmt,
     fs::{remove_dir_all, File},
@@ -22,6 +24,10 @@ use std::{
 use utoipa::ToSchema;
 use uuid::Uuid;
 use zip::read::ZipArchive;
+
+lazy_static! {
+    static ref GAMES_BUCKET: String = env::var("S3_GAMES_BUCKET").unwrap();
+}
 
 #[derive(Debug, Clone)]
 
@@ -124,14 +130,14 @@ async fn verify_and_upload(
         .put_object()
         .key(format!("{}/banner.png", uuid))
         .body(ByteStream::from_path(format!("/tmp/{}/banner.png", uuid)).await?)
-        .bucket("devcade-games")
+        .bucket(&GAMES_BUCKET.to_string())
         .send()
         .await?;
     let _ = s3
         .put_object()
         .key(format!("{}/icon.png", uuid))
         .body(ByteStream::from_path(format!("/tmp/{}/icon.png", uuid)).await?)
-        .bucket("devcade-games")
+        .bucket(&GAMES_BUCKET.to_string())
         .send()
         .await?;
     let _zip_cmd = Command::new("/user/bin/zip")
@@ -151,7 +157,7 @@ async fn verify_and_upload(
         .put_object()
         .key(format!("{}/{}.zip", uuid, uuid))
         .body(ByteStream::from_path(format!("/tmp/{}.zip", uuid)).await?)
-        .bucket("devcade-games")
+        .bucket(&GAMES_BUCKET.to_string())
         .send()
         .await?;
     remove_dir_all(format!("/tmp/{}", uuid))?;
@@ -344,7 +350,7 @@ pub async fn get_binary(state: Data<AppState>, path: Path<(String,)>) -> impl Re
     match state
         .s3
         .get_object()
-        .bucket("devcade-games")
+        .bucket(&GAMES_BUCKET.to_string())
         .key(format!("{}/{}.zip", id, id))
         .send()
         .await
@@ -385,7 +391,7 @@ pub async fn get_banner(state: Data<AppState>, path: Path<(String,)>) -> impl Re
     match state
         .s3
         .get_object()
-        .bucket("devcade-games")
+        .bucket(&GAMES_BUCKET.to_string())
         .key(format!("{}/banner.png", id))
         .send()
         .await
@@ -426,7 +432,7 @@ pub async fn get_icon(state: Data<AppState>, path: Path<(String,)>) -> impl Resp
     match state
         .s3
         .get_object()
-        .bucket("devcade-games")
+        .bucket(&GAMES_BUCKET.to_string())
         .key(format!("{}/icon.png", id))
         .send()
         .await
