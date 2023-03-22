@@ -12,7 +12,7 @@ use std::{
 const API_KEY_NAME: &str = "frontend_api_key";
 
 lazy_static! {
-    static ref API_KEY: String = env::var("FRONTENT_API_KEY").unwrap();
+    static ref API_KEY: String = env::var("FRONTEND_API_KEY").unwrap();
 }
 
 pub struct RequireApiKey;

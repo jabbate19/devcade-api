@@ -18,7 +18,7 @@ use std::{
     env,
     error::Error,
     fmt,
-    fs::{remove_dir_all, File},
+    fs::{remove_dir_all, remove_file, File},
     process::Command,
 };
 use utoipa::ToSchema;
@@ -103,7 +103,7 @@ async fn verify_and_upload(
     let mut zip_archive = ZipArchive::new(zip_file)?;
     {
         let publish = zip_archive
-            .by_name("publish")
+            .by_name("publish/")
             .map_err(|_| GameError::new("publish directory not found"))?;
         if !publish.is_dir() {
             return Err(Box::new(GameError::new("publish is not a zip")));
@@ -140,12 +140,11 @@ async fn verify_and_upload(
         .bucket(&GAMES_BUCKET.to_string())
         .send()
         .await?;
-    let _zip_cmd = Command::new("/user/bin/zip")
+    let _zip_cmd = Command::new("/usr/bin/zip")
         .arg("-r")
         .arg(format!("/tmp/{}.zip", uuid))
         .arg(format!("/tmp/{}/publish", uuid))
-        .spawn()
-        .unwrap();
+        .spawn()?.wait()?;
     let hash = {
         let mut publish_zip = File::open(format!("/tmp/{}.zip", uuid)).unwrap();
         let mut hasher = Sha256::new();
@@ -161,6 +160,7 @@ async fn verify_and_upload(
         .send()
         .await?;
     remove_dir_all(format!("/tmp/{}", uuid))?;
+    remove_file(format!("/tmp/{}.zip", uuid))?;
     Ok((uuid.to_string(), hash))
 }
 
@@ -184,7 +184,7 @@ pub async fn add_game(
     match verify_and_upload(form.file, &state.s3, None).await {
         Ok((uuid, hash)) => {
             let date = Local::now().date_naive();
-            match query("INSERT INTO game VALUES $1 $2 $3 $4 $5 $6 $7")
+            match query("INSERT INTO game VALUES ($1, $2, $3, $4, $5, $6, $7)")
                 .bind(&uuid)
                 .bind(&form.game_data.author)
                 .bind(date)
@@ -258,7 +258,7 @@ pub async fn edit_game(
         Ok(game) => match verify_and_upload(form.file, &state.s3, Some(id.clone())).await {
             Ok((_, hash)) => {
                 match query(
-                    "UPDATE game SET game_name = $1, description = $2, hash=$3, authrequired=$4, WHERE game_id = $5",
+                    "UPDATE game SET game_name = $1, description = $2, hash=$3, authrequired=$4 WHERE game_id = $5",
                 )
                 .bind(&form.game_data.name)
                 .bind(&form.game_data.description)
@@ -286,6 +286,13 @@ pub async fn edit_game(
     }
 }
 
+async fn delete_recursively(s3: &Client, id: &str) -> Result<(), Box<dyn std::error::Error>> {
+    s3.delete_object().bucket(&GAMES_BUCKET.to_string()).key(format!("{}/{}.zip", id, id)).send().await?;
+    s3.delete_object().bucket(&GAMES_BUCKET.to_string()).key(format!("{}/icon.png", id)).send().await?;
+    s3.delete_object().bucket(&GAMES_BUCKET.to_string()).key(format!("{}/banner.png", id)).send().await?;
+    Ok(())
+}
+
 #[utoipa::path(
     context_path = "/games",
     responses(
@@ -311,7 +318,7 @@ pub async fn delete_game(state: Data<AppState>, path: Path<(String,)>) -> impl R
     {
         return HttpResponse::BadRequest().body("Game ID Does Not Exist");
     }
-    match state.s3.delete_object().key(format!("{}", id)).send().await {
+    match delete_recursively(&state.s3, &id).await {
         Ok(_) => {
             match query("DELETE FROM game WHERE game_id = $1")
                 .bind(id)
