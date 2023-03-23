@@ -252,6 +252,7 @@ pub async fn get_game(state: Data<AppState>, path: Path<(String,)>) -> impl Resp
     request_body(content=GameUploadDoc, content_type="multipart/form-data", description="Multipart Form. Contains zip file of game data (banner.png, icon.png, and public folder) and JSON with name, desc, and author"),
     responses(
         (status = 200, description = "Updated game"),
+        (status = 400, description = "Invalid format of file upload"),
         (status = 401, description = "Invalid/Missing API Key"),
         (status = 500, description = "Error Created by Query"),
     ),
