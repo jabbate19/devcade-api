@@ -1,21 +1,9 @@
-FROM docker.io/node:18-bullseye
+FROM rust:1.66-slim-buster
 
-# Default node app location
-WORKDIR /usr/src/app
+RUN apt-get update && apt-get -y install zip libssl-dev pkg-config
 
-# Copy and install node dependencies
-COPY package*.json ./
-RUN npm install
+COPY ./ ./
 
-# Copy the rest of the app
-COPY . .
+RUN cargo build --release
 
-# Permissions
-RUN chmod -R 775 . && \
-  chgrp -R node .
-
-# Entrypoint
-USER root:node
-EXPOSE 8080
-CMD ["node", "index.js"]
-
+CMD ["./target/release/devcade-api-rs"]
