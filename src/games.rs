@@ -212,10 +212,10 @@ pub async fn add_game(
                 .await
             {
                 Ok(_) => HttpResponse::Created().json(Game {
-                    game_id: uuid,
-                    author_username: form.author.clone(),
+                    id: uuid,
+                    author: form.author.clone(),
                     upload_date: date,
-                    game_name: form.title.clone(),
+                    name: form.title.clone(),
                     hash: hash,
                     description: form.description.clone(),
                     authrequired: false,
@@ -237,7 +237,7 @@ pub async fn add_game(
 #[get("/{id}")]
 pub async fn get_game(state: Data<AppState>, path: Path<(String,)>) -> impl Responder {
     let (id,) = path.into_inner();
-    match query_as::<_, Game>("SELECT * FROM game WHERE game_id = $1")
+    match query_as::<_, Game>("SELECT * FROM game WHERE id = $1")
         .bind(id)
         .fetch_one(&state.db)
         .await
@@ -267,7 +267,7 @@ pub async fn edit_game(
     MultipartForm(form): MultipartForm<GameUpload>,
 ) -> impl Responder {
     let (id,) = path.into_inner();
-    match query_as::<_, Game>("SELECT * FROM game WHERE game_id = $1")
+    match query_as::<_, Game>("SELECT * FROM game WHERE id = $1")
         .bind(&id)
         .fetch_one(&state.db)
         .await
@@ -275,7 +275,7 @@ pub async fn edit_game(
         Ok(game) => match verify_and_upload(form.file, &state.s3, Some(id.clone())).await {
             Ok((_, hash)) => {
                 match query(
-                    "UPDATE game SET game_name = $1, description = $2, hash=$3, authrequired=$4 WHERE game_id = $5",
+                    "UPDATE game SET name = $1, description = $2, hash=$3, authrequired=$4 WHERE id = $5",
                 )
                 .bind(form.title.clone())
                 .bind(form.description.clone())
@@ -286,10 +286,10 @@ pub async fn edit_game(
                 .await
                 {
                     Ok(_) => HttpResponse::Ok().json(Game {
-                        game_id: id,
-                        author_username: game.author_username,
+                        id: id,
+                        author: game.author,
                         upload_date: game.upload_date,
-                        game_name: form.title.clone(),
+                        name: form.title.clone(),
                         hash: hash,
                         description: form.description.clone(),
                         authrequired: game.authrequired,
@@ -327,7 +327,7 @@ async fn delete_recursively(s3: &Client, id: &str) -> Result<(), Box<dyn std::er
 #[delete("/{id}", wrap = "RequireApiKey")]
 pub async fn delete_game(state: Data<AppState>, path: Path<(String,)>) -> impl Responder {
     let (id,) = path.into_inner();
-    if query_as::<_, Game>("SELECT * FROM game WHERE game_id = $1")
+    if query_as::<_, Game>("SELECT * FROM game WHERE id = $1")
         .bind(&id)
         .fetch_one(&state.db)
         .await
@@ -337,7 +337,7 @@ pub async fn delete_game(state: Data<AppState>, path: Path<(String,)>) -> impl R
     }
     match delete_recursively(&state.s3, &id).await {
         Ok(_) => {
-            match query("DELETE FROM game WHERE game_id = $1")
+            match query("DELETE FROM game WHERE id = $1")
                 .bind(id)
                 .execute(&state.db)
                 .await
@@ -363,7 +363,7 @@ pub async fn delete_game(state: Data<AppState>, path: Path<(String,)>) -> impl R
 #[get("/{id}/game")]
 pub async fn get_binary(state: Data<AppState>, path: Path<(String,)>) -> impl Responder {
     let (id,) = path.into_inner();
-    if query_as::<_, Game>("SELECT * FROM game WHERE game_id = $1")
+    if query_as::<_, Game>("SELECT * FROM game WHERE id = $1")
         .bind(&id)
         .fetch_one(&state.db)
         .await
@@ -404,7 +404,7 @@ pub async fn get_binary(state: Data<AppState>, path: Path<(String,)>) -> impl Re
 #[get("/{id}/banner")]
 pub async fn get_banner(state: Data<AppState>, path: Path<(String,)>) -> impl Responder {
     let (id,) = path.into_inner();
-    if query_as::<_, Game>("SELECT * FROM game WHERE game_id = $1")
+    if query_as::<_, Game>("SELECT * FROM game WHERE id = $1")
         .bind(&id)
         .fetch_one(&state.db)
         .await
@@ -445,7 +445,7 @@ pub async fn get_banner(state: Data<AppState>, path: Path<(String,)>) -> impl Re
 #[get("/{id}/icon")]
 pub async fn get_icon(state: Data<AppState>, path: Path<(String,)>) -> impl Responder {
     let (id,) = path.into_inner();
-    if query_as::<_, Game>("SELECT * FROM game WHERE game_id = $1")
+    if query_as::<_, Game>("SELECT * FROM game WHERE id = $1")
         .bind(&id)
         .fetch_one(&state.db)
         .await
