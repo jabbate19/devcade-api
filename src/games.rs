@@ -113,7 +113,7 @@ impl ImageComponent {
 )]
 #[get("/")]
 pub async fn get_all_games(state: Data<AppState>) -> impl Responder {
-    match query_as::<_, Game>("SELECT * FROM game")
+    match query_as::<_, Game>("SELECT * FROM game ORDER BY name ASC")
         .fetch_all(&state.db)
         .await
     {
