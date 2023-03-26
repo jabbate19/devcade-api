@@ -6,13 +6,13 @@ use utoipa::{self, ToSchema};
 #[derive(Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Game {
     #[schema(example = "a1c6cef6-d987-4225-8bc4-def387e8b5bf")]
-    pub game_id: String,
+    pub id: String,
     #[schema(example = "ella")]
-    pub author_username: String,
+    pub author: String,
     #[schema(example = "2023-03-20")]
     pub upload_date: NaiveDate,
     #[schema(example = "BrickBreaker")]
-    pub game_name: String,
+    pub name: String,
     #[schema(example = "kisQdebh0jnh6rb+bqQeM1EAxrg=")]
     pub hash: String,
     #[schema(example = "Break bricks, get points")]

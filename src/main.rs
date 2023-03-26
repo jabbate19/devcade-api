@@ -5,15 +5,14 @@ use actix_web::{
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::Endpoint;
 use devcade_api_rs::{
-    games::{self, GameData, GameUploadDoc},
+    games::{self, FileUploadDoc, GameData, GameUploadDoc},
     models::{AppState, Game},
 };
-use std::env;
 use sqlx::postgres::PgPoolOptions;
+use std::env;
 use utoipa::{
-    Modify,
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    OpenApi,
+    Modify, OpenApi,
 };
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -28,14 +27,14 @@ async fn main() -> std::io::Result<()> {
             games::delete_game,
             games::add_game,
             games::get_binary,
-            //games::update_binary,
+            games::update_binary,
             games::get_banner,
-            //games::update_banner,
+            games::update_banner,
             games::get_icon,
-            //games::update_icon,
+            games::update_icon,
         ),
         components(
-            schemas(GameData, Game, GameUploadDoc)
+            schemas(GameData, Game, GameUploadDoc, FileUploadDoc)
         ),
         tags(
             (name = "DevcadeAPI", description = "")
@@ -86,8 +85,11 @@ async fn main() -> std::io::Result<()> {
                     .service(games::delete_game)
                     .service(games::add_game)
                     .service(games::get_binary)
+                    .service(games::update_binary)
                     .service(games::get_banner)
-                    .service(games::get_icon),
+                    .service(games::update_banner)
+                    .service(games::get_icon)
+                    .service(games::update_icon),
             )
             .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi.clone()))
     })
