@@ -1,4 +1,6 @@
+use actix_cors::Cors;
 use actix_web::{
+    http,
     web::{scope, Data},
     App, HttpServer,
 };
@@ -6,7 +8,8 @@ use aws_sdk_s3 as s3;
 use aws_sdk_s3::Endpoint;
 use devcade_api_rs::{
     games::{self, FileUploadDoc, GameData, GameUploadDoc},
-    models::{AppState, Game},
+    models::{AppState, Game, GameWithTags, Tag},
+    tags,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::env;
@@ -32,9 +35,15 @@ async fn main() -> std::io::Result<()> {
             games::update_banner,
             games::get_icon,
             games::update_icon,
+            tags::get_all_tags,
+            tags::get_tag,
+            tags::edit_tag,
+            tags::delete_tag,
+            tags::add_tag,
+            tags::get_tag_games,
         ),
         components(
-            schemas(GameData, Game, GameUploadDoc, FileUploadDoc)
+            schemas(GameData, Game, GameUploadDoc, FileUploadDoc, GameWithTags, Tag)
         ),
         tags(
             (name = "DevcadeAPI", description = "")
@@ -72,7 +81,14 @@ async fn main() -> std::io::Result<()> {
         .await
         .unwrap();
     HttpServer::new(move || {
+        let cors = Cors::default()
+              .allowed_origin("http://dev.joeabbate.me")
+              .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+              .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+              .allowed_header(http::header::CONTENT_TYPE)
+              .max_age(3600);
         App::new()
+            .wrap(cors)
             .app_data(Data::new(AppState {
                 db: pool.clone(),
                 s3: s3_conn.clone(),
@@ -90,6 +106,15 @@ async fn main() -> std::io::Result<()> {
                     .service(games::update_banner)
                     .service(games::get_icon)
                     .service(games::update_icon),
+            )
+            .service(
+                scope("/tags")
+                    .service(tags::get_all_tags)
+                    .service(tags::get_tag)
+                    .service(tags::edit_tag)
+                    .service(tags::delete_tag)
+                    .service(tags::add_tag)
+                    .service(tags::get_tag_games),
             )
             .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi.clone()))
     })
