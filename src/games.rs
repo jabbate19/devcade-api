@@ -369,15 +369,18 @@ pub async fn delete_game(state: Data<AppState>, path: Path<(String,)>) -> impl R
     }
     match delete_recursively(&state.s3, &id).await {
         Ok(_) => {
-            match query("DELETE FROM game WHERE id = $1; DELETE FROM game_tags WHERE game_id = $1")
-                .bind(id)
+            match query("DELETE FROM game WHERE id = $1")
+                .bind(&id)
                 .execute(&state.db)
                 .await
             {
-                Ok(_) => HttpResponse::Ok().finish(),
+                Ok(_) => match query("DELETE FROM game_tags WHERE game_id = $1").bind(&id).execute(&state.db).await {
+                    Ok(_) => HttpResponse::Ok().finish(),
+                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                },
                 Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
-        }
+        },
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }

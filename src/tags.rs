@@ -102,11 +102,14 @@ pub async fn delete_tag(state: Data<AppState>, path: Path<(String,)>) -> impl Re
         return HttpResponse::BadRequest().body("Tag Does Not Exist");
     }
     match query("DELETE FROM tags WHERE name = $1; DELETE FROM game_tags WHERE tag_name = $1")
-        .bind(name)
+        .bind(&name)
         .execute(&state.db)
         .await
     {
-        Ok(_) => HttpResponse::Ok().finish(),
+        Ok(_) => match query("DELETE FROM game_tags WHERE tag_name = $1").bind(&name).execute(&state.db).await {
+            Ok(_) => HttpResponse::Ok().finish(),
+            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        },
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
