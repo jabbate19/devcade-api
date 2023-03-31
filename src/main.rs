@@ -1,6 +1,7 @@
 use actix_cors::Cors;
 use actix_web::{
     http,
+    middleware::Logger,
     web::{scope, Data},
     App, HttpServer,
 };
@@ -8,8 +9,8 @@ use aws_sdk_s3 as s3;
 use aws_sdk_s3::Endpoint;
 use devcade_api_rs::{
     games::{self, FileUploadDoc, GameData, GameUploadDoc},
-    models::{AppState, Game, GameWithTags, Tag},
-    tags,
+    models::{AppState, Game, GameWithTags, Tag, User, UserType},
+    tags, users,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::env;
@@ -21,6 +22,8 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
     #[derive(OpenApi)]
     #[openapi(
         paths(
@@ -41,9 +44,12 @@ async fn main() -> std::io::Result<()> {
             tags::delete_tag,
             tags::add_tag,
             tags::get_tag_games,
+            users::get_user,
+            users::add_user,
+            users::edit_user,
         ),
         components(
-            schemas(GameData, Game, GameUploadDoc, FileUploadDoc, GameWithTags, Tag)
+            schemas(GameData, Game, GameUploadDoc, FileUploadDoc, GameWithTags, Tag, User, UserType)
         ),
         tags(
             (name = "DevcadeAPI", description = "")
@@ -82,13 +88,16 @@ async fn main() -> std::io::Result<()> {
         .unwrap();
     HttpServer::new(move || {
         let cors = Cors::default()
-              .allowed_origin("http://dev.joeabbate.me")
-              .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
-              .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
-              .allowed_header(http::header::CONTENT_TYPE)
-              .max_age(3600);
+            .allowed_origin(&env::var("DOMAIN").unwrap())
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+            .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+            .allowed_header(http::header::CONTENT_TYPE)
+            .max_age(3600);
         App::new()
             .wrap(cors)
+            .wrap(Logger::new(
+                "%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T",
+            ))
             .app_data(Data::new(AppState {
                 db: pool.clone(),
                 s3: s3_conn.clone(),
@@ -115,6 +124,12 @@ async fn main() -> std::io::Result<()> {
                     .service(tags::delete_tag)
                     .service(tags::add_tag)
                     .service(tags::get_tag_games),
+            )
+            .service(
+                scope("/users")
+                    .service(users::get_user)
+                    .service(users::add_user)
+                    .service(users::edit_user),
             )
             .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi.clone()))
     })

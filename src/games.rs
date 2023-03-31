@@ -112,9 +112,20 @@ impl ImageComponent {
 )]
 #[get("/")]
 pub async fn get_all_games(state: Data<AppState>) -> impl Responder {
-    match query_as::<_, GameWithTags>("SELECT game.*, array_remove(ARRAY_AGG(tags.*), NULL) AS \"tags\" FROM game LEFT JOIN game_tags ON game_tags.game_id = game.id LEFT JOIN tags ON tags.name = game_tags.tag_name GROUP BY game.id ORDER BY name ASC")
-        .fetch_all(&state.db)
-        .await
+    match query_as::<_, GameWithTags>(
+        "
+        SELECT game.*,
+            ROW(users.*)::devcadedev.users AS \"user\",
+            array_remove(ARRAY_AGG(tags.*), NULL) AS \"tags\"
+        FROM game
+        LEFT JOIN game_tags ON game_tags.game_id = game.id
+        LEFT JOIN tags ON tags.name = game_tags.tag_name
+        LEFT JOIN users ON game.author = users.id
+        GROUP BY game.id, users.id ORDER BY name ASC
+        ",
+    )
+    .fetch_all(&state.db)
+    .await
     {
         Ok(games) => HttpResponse::Ok().json(games),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -264,13 +275,25 @@ pub async fn add_game(
 #[get("/{id}")]
 pub async fn get_game(state: Data<AppState>, path: Path<(String,)>) -> impl Responder {
     let (id,) = path.into_inner();
-    match query_as::<_, GameWithTags>("SELECT game.*, array_remove(ARRAY_AGG(tags.*), NULL) AS \"tags\" FROM game LEFT JOIN game_tags ON game_tags.game_id = game.id LEFT JOIN tags ON tags.name = game_tags.tag_name WHERE game.id = $1 GROUP BY game.id")
-        .bind(id)
-        .fetch_one(&state.db)
-        .await
+    match query_as::<_, GameWithTags>(
+        "
+        SELECT game.*,
+            ROW(users.*)::devcadedev.users AS \"user\",
+            array_remove(ARRAY_AGG(tags.*), NULL) AS \"tags\"
+        FROM game
+        LEFT JOIN game_tags ON game_tags.game_id = game.id
+        LEFT JOIN tags ON tags.name = game_tags.tag_name
+        LEFT JOIN users ON users.id = game.author
+        WHERE game.id = $1
+        GROUP BY game.id, users.id
+        ",
+    )
+    .bind(id)
+    .fetch_one(&state.db)
+    .await
     {
         Ok(game) => HttpResponse::Ok().json(game),
-        Err(_) => HttpResponse::BadRequest().body("Game ID Does Not Exist"),
+        Err(e) => HttpResponse::BadRequest().body(e.to_string()),
     }
 }
 
@@ -374,13 +397,17 @@ pub async fn delete_game(state: Data<AppState>, path: Path<(String,)>) -> impl R
                 .execute(&state.db)
                 .await
             {
-                Ok(_) => match query("DELETE FROM game_tags WHERE game_id = $1").bind(&id).execute(&state.db).await {
+                Ok(_) => match query("DELETE FROM game_tags WHERE game_id = $1")
+                    .bind(&id)
+                    .execute(&state.db)
+                    .await
+                {
                     Ok(_) => HttpResponse::Ok().finish(),
                     Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
                 },
                 Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
-        },
+        }
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }

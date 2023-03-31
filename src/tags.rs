@@ -101,12 +101,16 @@ pub async fn delete_tag(state: Data<AppState>, path: Path<(String,)>) -> impl Re
     {
         return HttpResponse::BadRequest().body("Tag Does Not Exist");
     }
-    match query("DELETE FROM tags WHERE name = $1; DELETE FROM game_tags WHERE tag_name = $1")
+    match query("DELETE FROM tags WHERE name = $1")
         .bind(&name)
         .execute(&state.db)
         .await
     {
-        Ok(_) => match query("DELETE FROM game_tags WHERE tag_name = $1").bind(&name).execute(&state.db).await {
+        Ok(_) => match query("DELETE FROM game_tags WHERE tag_name = $1")
+            .bind(&name)
+            .execute(&state.db)
+            .await
+        {
             Ok(_) => HttpResponse::Ok().finish(),
             Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
         },
@@ -141,17 +145,25 @@ pub async fn edit_tag(
     {
         return HttpResponse::BadRequest().body("Tag Does Not Exist");
     }
-    match query("UPDATE tags SET name = $1, description = $2 WHERE name = $3; UPDATE game_tags SET tag_name = $1 WHERE tag_name = $3")
+    match query("UPDATE tags SET name = $1, description = $2 WHERE name = $3")
         .bind(&tag.name)
         .bind(&tag.description)
-        .bind(name)
+        .bind(&name)
         .execute(&state.db)
         .await
     {
-        Ok(_) => HttpResponse::Created().json(Tag {
-            name: tag.name.clone(),
-            description: tag.description.clone(),
-        }),
+        Ok(_) => match query("UPDATE game_tags SET tag_name = $1 WHERE tag_name = $2")
+            .bind(&tag.name)
+            .bind(&name)
+            .execute(&state.db)
+            .await
+        {
+            Ok(_) => HttpResponse::Created().json(Tag {
+                name: tag.name.clone(),
+                description: tag.description.clone(),
+            }),
+            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        },
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
