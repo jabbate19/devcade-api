@@ -1,12 +1,17 @@
+use actix_cors::Cors;
 use actix_web::{
+    http,
+    middleware::Logger,
     web::{scope, Data},
     App, HttpServer,
 };
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::Endpoint;
 use devcade_api_rs::{
-    games::{self, FileUploadDoc, GameData, GameUploadDoc},
-    models::{AppState, Game},
+    games::routes::{self as games, FileUploadDoc, GameData, GameUploadDoc},
+    models::{AppState, Game, GameWithTags, Tag, User, UserType},
+    tags::routes as tags,
+    users::routes as users,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::env;
@@ -18,6 +23,8 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
     #[derive(OpenApi)]
     #[openapi(
         paths(
@@ -32,9 +39,18 @@ async fn main() -> std::io::Result<()> {
             games::update_banner,
             games::get_icon,
             games::update_icon,
+            tags::get_all_tags,
+            tags::get_tag,
+            tags::edit_tag,
+            tags::delete_tag,
+            tags::add_tag,
+            tags::get_tag_games,
+            users::get_user,
+            users::add_user,
+            users::edit_user,
         ),
         components(
-            schemas(GameData, Game, GameUploadDoc, FileUploadDoc)
+            schemas(GameData, Game, GameUploadDoc, FileUploadDoc, GameWithTags, Tag, User, UserType)
         ),
         tags(
             (name = "DevcadeAPI", description = "")
@@ -61,7 +77,10 @@ async fn main() -> std::io::Result<()> {
     // Create an S3 config from the shared config and override the endpoint resolver.
     let s3_config = s3::config::Builder::from(&shared_config)
         .endpoint_resolver(Endpoint::immutable(
-            "https://s3.csh.rit.edu".parse().unwrap(),
+            env::var("S3_ENDPOINT")
+                .unwrap_or("https://s3.csh.rit.edu".to_string())
+                .parse()
+                .unwrap(),
         ))
         //.endpoint_resolver(s3::Endpoint::immutable("https://s3.csh.rit.edu".parse().unwrap()))
         .build();
@@ -72,7 +91,17 @@ async fn main() -> std::io::Result<()> {
         .await
         .unwrap();
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin(&env::var("DOMAIN").unwrap())
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+            .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+            .allowed_header(http::header::CONTENT_TYPE)
+            .max_age(3600);
         App::new()
+            .wrap(cors)
+            .wrap(Logger::new(
+                "%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T",
+            ))
             .app_data(Data::new(AppState {
                 db: pool.clone(),
                 s3: s3_conn.clone(),
@@ -90,6 +119,21 @@ async fn main() -> std::io::Result<()> {
                     .service(games::update_banner)
                     .service(games::get_icon)
                     .service(games::update_icon),
+            )
+            .service(
+                scope("/tags")
+                    .service(tags::get_all_tags)
+                    .service(tags::get_tag)
+                    .service(tags::edit_tag)
+                    .service(tags::delete_tag)
+                    .service(tags::add_tag)
+                    .service(tags::get_tag_games),
+            )
+            .service(
+                scope("/users")
+                    .service(users::get_user)
+                    .service(users::add_user)
+                    .service(users::edit_user),
             )
             .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi.clone()))
     })

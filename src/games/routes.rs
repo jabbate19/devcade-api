@@ -1,5 +1,5 @@
 use crate::{
-    models::{AppState, Game},
+    models::{AppState, Game, GameWithTags},
     security::RequireApiKey,
 };
 use actix_multipart::form::{tempfile::TempFile, text::Text, MultipartForm};
@@ -10,12 +10,17 @@ use actix_web::{
 };
 use aws_sdk_s3::{types::ByteStream, Client};
 use chrono::prelude::*;
-use data_encoding::HEXLOWER;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha1::{Digest, Sha1};
 use sqlx::{query, query_as};
-use std::{env, error::Error, fmt, fs::File};
+use std::{
+    env,
+    error::Error,
+    fmt,
+    fs::File,
+    io::{BufReader, Read},
+};
 use utoipa::ToSchema;
 use uuid::Uuid;
 use zip::read::ZipArchive;
@@ -25,7 +30,6 @@ lazy_static! {
 }
 
 #[derive(Debug, Clone)]
-
 struct GameError {
     reason: String,
 }
@@ -40,7 +44,7 @@ impl GameError {
 impl Error for GameError {}
 impl fmt::Display for GameError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.reason)
+        write!(f, "GameError: {}", self.reason)
     }
 }
 
@@ -52,25 +56,23 @@ pub struct GameData {
     description: String,
     #[schema(example = "ella")]
     author: String,
-    #[schema(example = false)]
-    authrequired: bool,
 }
 
 #[derive(Debug, MultipartForm)]
 pub struct GameUpload {
-    game: TempFile,
-    banner: TempFile,
-    icon: TempFile,
-    title: Text<String>,
-    description: Text<String>,
-    author: Text<String>,
+    pub game: TempFile,
+    pub banner: TempFile,
+    pub icon: TempFile,
+    pub title: Text<String>,
+    pub description: Text<String>,
+    pub author: Text<String>,
 }
 
 #[allow(dead_code)]
 #[derive(ToSchema)]
 pub struct GameUploadDoc {
     #[schema(format = Binary)]
-    file: String,
+    game: String,
     #[schema(format = Binary)]
     banner: String,
     #[schema(format = Binary)]
@@ -107,15 +109,26 @@ impl ImageComponent {
 #[utoipa::path(
     context_path = "/games",
     responses(
-        (status = 200, description = "List all games", body = [Game]),
+        (status = 200, description = "List all games", body = [GameWithTags]),
         (status = 500, description = "Error Created by Query"),
     )
 )]
 #[get("/")]
 pub async fn get_all_games(state: Data<AppState>) -> impl Responder {
-    match query_as::<_, Game>("SELECT * FROM game ORDER BY name ASC")
-        .fetch_all(&state.db)
-        .await
+    match query_as::<_, GameWithTags>(
+        "
+        SELECT game.*,
+            ROW(users.*)::users AS \"user\",
+            array_remove(ARRAY_AGG(tags.*), NULL) AS \"tags\"
+        FROM game
+        LEFT JOIN game_tags ON game_tags.game_id = game.id
+        LEFT JOIN tags ON tags.name = game_tags.tag_name
+        LEFT JOIN users ON game.author = users.id
+        GROUP BY game.id, users.id ORDER BY name ASC
+        ",
+    )
+    .fetch_all(&state.db)
+    .await
     {
         Ok(games) => HttpResponse::Ok().json(games),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -146,13 +159,7 @@ async fn verify_and_upload_game(
             return Err(Box::new(GameError::new("publish is not a directory")));
         }
     }
-    let hash = {
-        let mut hasher = Sha256::new();
-        let mut zip_file = File::open(game.file.path())?;
-        let _bytes_written = std::io::copy(&mut zip_file, &mut hasher);
-        let result = hasher.finalize();
-        HEXLOWER.encode(&result)
-    };
+    let hash = sha1sum(game.file.path().display().to_string())?;
     let _ = s3
         .put_object()
         .key(format!("{}/{}.zip", uuid, uuid))
@@ -203,8 +210,8 @@ async fn verify_and_upload(
     uuid: Option<String>,
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
     let (uuid, hash) = verify_and_upload_game(game, s3, uuid).await?;
-    let _ = verify_and_upload_image(banner, s3, ImageComponent::Banner, &uuid);
-    let _ = verify_and_upload_image(icon, s3, ImageComponent::Icon, &uuid);
+    let _ = verify_and_upload_image(banner, s3, ImageComponent::Banner, &uuid).await?;
+    let _ = verify_and_upload_image(icon, s3, ImageComponent::Icon, &uuid).await?;
     Ok((uuid, hash))
 }
 
@@ -229,14 +236,13 @@ pub async fn add_game(
     match verify_and_upload(form.game, form.banner, form.icon, &state.s3, None).await {
         Ok((uuid, hash)) => {
             let date = Local::now().date_naive();
-            match query("INSERT INTO game VALUES ($1, $2, $3, $4, $5, $6, $7)")
+            match query("INSERT INTO game VALUES ($1, $2, $3, $4, $5, $6)")
                 .bind(&uuid)
                 .bind(form.author.clone())
                 .bind(date)
                 .bind(form.title.clone())
                 .bind(&hash)
                 .bind(form.description.clone())
-                .bind(false)
                 .execute(&state.db)
                 .await
             {
@@ -245,9 +251,8 @@ pub async fn add_game(
                     author: form.author.clone(),
                     upload_date: date,
                     name: form.title.clone(),
-                    hash: hash,
+                    hash,
                     description: form.description.clone(),
-                    authrequired: false,
                 }),
                 Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
@@ -259,7 +264,7 @@ pub async fn add_game(
 #[utoipa::path(
     context_path = "/games",
     responses(
-        (status = 200, description = "List all games", body = [Game]),
+        (status = 200, description = "Get specified game", body = GameWithTags),
         (status = 400, description = "Missing game"),
         (status = 500, description = "Error Created by Query"),
     )
@@ -267,13 +272,25 @@ pub async fn add_game(
 #[get("/{id}")]
 pub async fn get_game(state: Data<AppState>, path: Path<(String,)>) -> impl Responder {
     let (id,) = path.into_inner();
-    match query_as::<_, Game>("SELECT * FROM game WHERE id = $1")
-        .bind(id)
-        .fetch_one(&state.db)
-        .await
+    match query_as::<_, GameWithTags>(
+        "
+        SELECT game.*,
+            ROW(users.*)::users AS \"user\",
+            array_remove(ARRAY_AGG(tags.*), NULL) AS \"tags\"
+        FROM game
+        LEFT JOIN game_tags ON game_tags.game_id = game.id
+        LEFT JOIN tags ON tags.name = game_tags.tag_name
+        LEFT JOIN users ON users.id = game.author
+        WHERE game.id = $1
+        GROUP BY game.id, users.id
+        ",
+    )
+    .bind(id)
+    .fetch_one(&state.db)
+    .await
     {
         Ok(game) => HttpResponse::Ok().json(game),
-        Err(_) => HttpResponse::BadRequest().body("Game ID Does Not Exist"),
+        Err(e) => HttpResponse::BadRequest().body(e.to_string()),
     }
 }
 
@@ -303,24 +320,20 @@ pub async fn edit_game(
         .await
     {
         Ok(game) => {
-            match query(
-                "UPDATE game SET name = $1, description = $2, authrequired=$3 WHERE id = $4",
-            )
-            .bind(game_data.name.clone())
-            .bind(game_data.description.clone())
-            .bind(game.authrequired)
-            .bind(&id)
-            .execute(&state.db)
-            .await
+            match query("UPDATE game SET name = $1, description = $2 WHERE id = $3")
+                .bind(game_data.name.clone())
+                .bind(game_data.description.clone())
+                .bind(&id)
+                .execute(&state.db)
+                .await
             {
                 Ok(_) => HttpResponse::Ok().json(Game {
-                    id: id,
+                    id,
                     author: game.author,
                     upload_date: game.upload_date,
                     name: game_data.name.clone(),
                     hash: game.hash,
                     description: game_data.description.clone(),
-                    authrequired: game_data.authrequired,
                 }),
                 Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
@@ -377,11 +390,18 @@ pub async fn delete_game(state: Data<AppState>, path: Path<(String,)>) -> impl R
     match delete_recursively(&state.s3, &id).await {
         Ok(_) => {
             match query("DELETE FROM game WHERE id = $1")
-                .bind(id)
+                .bind(&id)
                 .execute(&state.db)
                 .await
             {
-                Ok(_) => HttpResponse::Ok().finish(),
+                Ok(_) => match query("DELETE FROM game_tags WHERE game_id = $1")
+                    .bind(&id)
+                    .execute(&state.db)
+                    .await
+                {
+                    Ok(_) => HttpResponse::Ok().finish(),
+                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                },
                 Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
         }
@@ -461,13 +481,12 @@ pub async fn update_binary(
     {
         Ok(game) => match verify_and_upload_game(form.file, &state.s3, Some(id.clone())).await {
             Ok((_, hash)) => HttpResponse::Ok().json(Game {
-                id: id,
+                id,
                 author: game.author,
                 upload_date: game.upload_date,
                 name: game.name,
-                hash: hash,
+                hash,
                 description: game.description,
-                authrequired: false,
             }),
             Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
         },
@@ -633,4 +652,22 @@ pub async fn update_icon(
         }
         Err(_) => HttpResponse::BadRequest().body("Game ID Does Not Exist"),
     }
+}
+
+pub fn sha1sum(filepath: String) -> Result<String, Box<dyn std::error::Error>> {
+    let f = File::open(&filepath)?;
+    let mut reader = BufReader::new(f);
+    let mut buffer = Vec::new();
+
+    // Read file into vector.
+    reader.read_to_end(&mut buffer)?;
+
+    let mut hasher = Sha1::new();
+    hasher.update(&buffer);
+    let hexes = hasher.finalize();
+    let mut out = String::new();
+    for hex in hexes {
+        out.push_str(&format!("{:02x?}", hex));
+    }
+    Ok(out)
 }
