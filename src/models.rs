@@ -7,7 +7,7 @@ use sqlx::{
 };
 use utoipa::{self, ToSchema};
 
-#[derive(Serialize, Deserialize, FromRow, ToSchema)]
+#[derive(Serialize, Deserialize, FromRow, ToSchema, Clone, PartialEq)]
 pub struct Game {
     #[schema(example = "a1c6cef6-d987-4225-8bc4-def387e8b5bf")]
     pub id: String,
@@ -23,7 +23,7 @@ pub struct Game {
     pub description: String,
 }
 
-#[derive(Serialize, Deserialize, FromRow, ToSchema)]
+#[derive(Serialize, Deserialize, FromRow, ToSchema, Clone, PartialEq, Debug)]
 pub struct GameWithTags {
     #[schema(example = "a1c6cef6-d987-4225-8bc4-def387e8b5bf")]
     pub id: String,
@@ -41,8 +41,7 @@ pub struct GameWithTags {
         example = "[{\"name\": \"authrequired\", \"description\": \"Required CSH Authentication to Access\"}]"
     )]
     pub tags: Vec<Tag>,
-    #[schema(
-        example = "{
+    #[schema(example = "{
             \"id\": \"103956139596074306830\",
             \"user_type\": \"GOOGLE\",
             \"first_name\": \"Wilson\",
@@ -50,12 +49,26 @@ pub struct GameWithTags {
             \"picture\": \"https://lh3.googleusercontent.com/a/AGNmyxYS7ZmwC4Uw2ZhBlOdMvpIU7z3FwfRRkvw66d3r=s96-c\",
             \"admin\": false,
             \"email\": \"wam2134@g.rit.edu\"
-        }"
-    )]
-    user: User,
+        }")]
+    pub user: User,
 }
 
-#[derive(sqlx::Type, Serialize, Deserialize, FromRow, ToSchema)]
+impl GameWithTags {
+    pub fn new(game: Game, tags: Vec<Tag>, user: User) -> GameWithTags {
+        GameWithTags {
+            id: game.id.clone(),
+            author: game.author.clone(),
+            upload_date: game.upload_date.clone(),
+            name: game.name.clone(),
+            hash: game.hash.clone(),
+            description: game.description.clone(),
+            tags,
+            user,
+        }
+    }
+}
+
+#[derive(sqlx::Type, Serialize, Deserialize, FromRow, ToSchema, Clone, PartialEq, Debug)]
 pub struct Tag {
     #[schema(example = "authrequired")]
     pub name: String,
@@ -69,13 +82,13 @@ impl PgHasArrayType for Tag {
     }
 }
 
-#[derive(sqlx::Type, Serialize, Deserialize, Clone, ToSchema, Debug)]
+#[derive(sqlx::Type, Serialize, Deserialize, Clone, ToSchema, Debug, PartialEq)]
 pub enum UserType {
     CSH,
     GOOGLE,
 }
 
-#[derive(sqlx::Type, Serialize, Deserialize, FromRow, ToSchema)]
+#[derive(sqlx::Type, Serialize, Deserialize, FromRow, ToSchema, Clone, PartialEq, Debug)]
 #[sqlx(type_name = "users")]
 pub struct User {
     #[schema(example = "skyz")]
@@ -92,6 +105,20 @@ pub struct User {
     pub admin: bool,
     #[schema(example = "skyz@csh.rit.edu")]
     pub email: String,
+}
+
+impl User {
+    pub fn from_csh(username: &str, first_name: &str, last_name: &str, admin: bool) -> User {
+        User {
+            id: username.to_string(),
+            user_type: UserType::CSH,
+            first_name: first_name.to_string(),
+            last_name: last_name.to_string(),
+            picture: format!("https://profiles.csh.rit.edu/image/{}", username),
+            email: format!("{}@csh.rit.edu", username),
+            admin,
+        }
+    }
 }
 
 pub struct AppState {

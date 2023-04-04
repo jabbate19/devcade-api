@@ -51,25 +51,23 @@ pub struct GameData {
     description: String,
     #[schema(example = "ella")]
     author: String,
-    #[schema(example = false)]
-    authrequired: bool,
 }
 
 #[derive(Debug, MultipartForm)]
 pub struct GameUpload {
-    game: TempFile,
-    banner: TempFile,
-    icon: TempFile,
-    title: Text<String>,
-    description: Text<String>,
-    author: Text<String>,
+    pub game: TempFile,
+    pub banner: TempFile,
+    pub icon: TempFile,
+    pub title: Text<String>,
+    pub description: Text<String>,
+    pub author: Text<String>,
 }
 
 #[allow(dead_code)]
 #[derive(ToSchema)]
 pub struct GameUploadDoc {
     #[schema(format = Binary)]
-    file: String,
+    game: String,
     #[schema(format = Binary)]
     banner: String,
     #[schema(format = Binary)]
@@ -115,7 +113,7 @@ pub async fn get_all_games(state: Data<AppState>) -> impl Responder {
     match query_as::<_, GameWithTags>(
         "
         SELECT game.*,
-            ROW(users.*)::devcadedev.users AS \"user\",
+            ROW(users.*)::users AS \"user\",
             array_remove(ARRAY_AGG(tags.*), NULL) AS \"tags\"
         FROM game
         LEFT JOIN game_tags ON game_tags.game_id = game.id
@@ -213,8 +211,8 @@ async fn verify_and_upload(
     uuid: Option<String>,
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
     let (uuid, hash) = verify_and_upload_game(game, s3, uuid).await?;
-    let _ = verify_and_upload_image(banner, s3, ImageComponent::Banner, &uuid);
-    let _ = verify_and_upload_image(icon, s3, ImageComponent::Icon, &uuid);
+    let _ = verify_and_upload_image(banner, s3, ImageComponent::Banner, &uuid).await?;
+    let _ = verify_and_upload_image(icon, s3, ImageComponent::Icon, &uuid).await?;
     Ok((uuid, hash))
 }
 
@@ -278,7 +276,7 @@ pub async fn get_game(state: Data<AppState>, path: Path<(String,)>) -> impl Resp
     match query_as::<_, GameWithTags>(
         "
         SELECT game.*,
-            ROW(users.*)::devcadedev.users AS \"user\",
+            ROW(users.*)::users AS \"user\",
             array_remove(ARRAY_AGG(tags.*), NULL) AS \"tags\"
         FROM game
         LEFT JOIN game_tags ON game_tags.game_id = game.id
@@ -323,7 +321,7 @@ pub async fn edit_game(
         .await
     {
         Ok(game) => {
-            match query("UPDATE game SET name = $1, description = $2 WHERE id = $4")
+            match query("UPDATE game SET name = $1, description = $2 WHERE id = $3")
                 .bind(game_data.name.clone())
                 .bind(game_data.description.clone())
                 .bind(&id)

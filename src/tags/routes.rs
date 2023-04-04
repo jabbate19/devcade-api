@@ -71,7 +71,7 @@ pub async fn get_tag(state: Data<AppState>, path: Path<(String,)>) -> impl Respo
         .await
     {
         Ok(tags) => HttpResponse::Ok().json(tags),
-        Err(_) => HttpResponse::BadRequest().body("Tag Does Not Exist"),
+        Err(e) => HttpResponse::BadRequest().body(e.to_string()),
     }
 }
 
@@ -84,7 +84,7 @@ pub async fn get_tag(state: Data<AppState>, path: Path<(String,)>) -> impl Respo
         (status = 500, description = "Error Created by Deletion"),
     ),
     params(
-        ("id", description = "Unique id of game")
+        ("tag", description = "Tag to delete")
     ),
     security(
         ("api_key" = [])
@@ -106,14 +106,7 @@ pub async fn delete_tag(state: Data<AppState>, path: Path<(String,)>) -> impl Re
         .execute(&state.db)
         .await
     {
-        Ok(_) => match query("DELETE FROM game_tags WHERE tag_name = $1")
-            .bind(&name)
-            .execute(&state.db)
-            .await
-        {
-            Ok(_) => HttpResponse::Ok().finish(),
-            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-        },
+        Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
@@ -152,18 +145,10 @@ pub async fn edit_tag(
         .execute(&state.db)
         .await
     {
-        Ok(_) => match query("UPDATE game_tags SET tag_name = $1 WHERE tag_name = $2")
-            .bind(&tag.name)
-            .bind(&name)
-            .execute(&state.db)
-            .await
-        {
-            Ok(_) => HttpResponse::Created().json(Tag {
-                name: tag.name.clone(),
-                description: tag.description.clone(),
-            }),
-            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-        },
+        Ok(_) => HttpResponse::Created().json(Tag {
+            name: tag.name.clone(),
+            description: tag.description.clone(),
+        }),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }

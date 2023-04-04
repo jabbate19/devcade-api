@@ -8,9 +8,10 @@ use actix_web::{
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::Endpoint;
 use devcade_api_rs::{
-    games::{self, FileUploadDoc, GameData, GameUploadDoc},
+    games::routes::{self as games, FileUploadDoc, GameData, GameUploadDoc},
     models::{AppState, Game, GameWithTags, Tag, User, UserType},
-    tags, users,
+    tags::routes as tags,
+    users::routes as users,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::env;
@@ -76,7 +77,10 @@ async fn main() -> std::io::Result<()> {
     // Create an S3 config from the shared config and override the endpoint resolver.
     let s3_config = s3::config::Builder::from(&shared_config)
         .endpoint_resolver(Endpoint::immutable(
-            "https://s3.csh.rit.edu".parse().unwrap(),
+            env::var("S3_ENDPOINT")
+                .unwrap_or("https://s3.csh.rit.edu".to_string())
+                .parse()
+                .unwrap(),
         ))
         //.endpoint_resolver(s3::Endpoint::immutable("https://s3.csh.rit.edu".parse().unwrap()))
         .build();
