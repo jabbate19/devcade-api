@@ -10,12 +10,17 @@ use actix_web::{
 };
 use aws_sdk_s3::{types::ByteStream, Client};
 use chrono::prelude::*;
-use data_encoding::HEXLOWER;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha1::{Digest, Sha1};
 use sqlx::{query, query_as};
-use std::{env, error::Error, fmt, fs::File};
+use std::{
+    env,
+    error::Error,
+    fmt,
+    fs::File,
+    io::{BufReader, Read},
+};
 use utoipa::ToSchema;
 use uuid::Uuid;
 use zip::read::ZipArchive;
@@ -154,13 +159,7 @@ async fn verify_and_upload_game(
             return Err(Box::new(GameError::new("publish is not a directory")));
         }
     }
-    let hash = {
-        let mut hasher = Sha256::new();
-        let mut zip_file = File::open(game.file.path())?;
-        let _bytes_written = std::io::copy(&mut zip_file, &mut hasher);
-        let result = hasher.finalize();
-        HEXLOWER.encode(&result).trim().to_string()
-    };
+    let hash = sha1sum(game.file.path().display().to_string())?;
     let _ = s3
         .put_object()
         .key(format!("{}/{}.zip", uuid, uuid))
@@ -653,4 +652,22 @@ pub async fn update_icon(
         }
         Err(_) => HttpResponse::BadRequest().body("Game ID Does Not Exist"),
     }
+}
+
+pub fn sha1sum(filepath: String) -> Result<String, Box<dyn std::error::Error>> {
+    let f = File::open(&filepath)?;
+    let mut reader = BufReader::new(f);
+    let mut buffer = Vec::new();
+
+    // Read file into vector.
+    reader.read_to_end(&mut buffer)?;
+
+    let mut hasher = Sha1::new();
+    hasher.update(&buffer);
+    let hexes = hasher.finalize();
+    let mut out = String::new();
+    for hex in hexes {
+        out.push_str(&format!("{:02x?}", hex));
+    }
+    Ok(out)
 }
