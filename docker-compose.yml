@@ -30,7 +30,7 @@ services:
     image: devcade-api
     build:
       context: .
-      dockerfile: ./Dockerfile.test
+      dockerfile: ./Dockerfile
     environment:
       - SQL_URI=postgres://devcade:devcade@postgres/devcade?currentSchema=public
       - FRONTEND_API_KEY=TESTING
@@ -39,7 +39,9 @@ services:
       - AWS_ACCESS_KEY_ID=DEVCADE1234
       - AWS_SECRET_ACCESS_KEY=DEVCADE1234
       - AWS_DEFAULT_REGION=us-east-1
-      - DOMAIN=devcade-api
+      - DOMAIN=localhost
+    ports:
+      - 8080:8080
     networks:
       - test
     depends_on:
