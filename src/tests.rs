@@ -1,60 +1,53 @@
 use crate::{
-    games::routes::{self as games, FileUploadDoc, GameData, GameUploadDoc},
-    models::{AppState, Game, GameWithTags, Tag, User, UserType},
-    tags::routes as tags,
-    users::routes as users, app::{get_app_data, configure_app},
+    models::{Game, GameWithTags, Tag, User}, app::{get_app_data, configure_app},
 };
 use actix_test::TestServer;
 use actix_web::{
-    web::{self, scope, Data},
     App,
 };
-use aws_sdk_s3 as s3;
-use aws_sdk_s3::Endpoint;
+
+
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
-use sqlx::postgres::PgPoolOptions;
-use std::env;
-use utoipa::{
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify, OpenApi,
-};
-use utoipa_swagger_ui::SwaggerUi;
+
+
+
+
 
 lazy_static! {
     pub static ref TEST_GAME_A: Game = make_test_game(
         "A",
         "skyz",
         "5ec8f244899431af8effad9e7ec9b2543226c78f",
-        NaiveDate::from_ymd_opt(2023, 03, 23).unwrap(),
+        NaiveDate::from_ymd_opt(2023, 3, 23).unwrap(),
         "TestGameA"
     );
     pub static ref TEST_GAME_B: Game = make_test_game(
         "B",
         "qel",
         "7b91c68006227a64c3cabcb6aa67f3e3e792b11b",
-        NaiveDate::from_ymd_opt(2023, 03, 23).unwrap(),
+        NaiveDate::from_ymd_opt(2023, 3, 23).unwrap(),
         "TestGameB"
     );
     pub static ref TEST_GAME_C: Game = make_test_game(
         "C",
         "ella",
         "0d641140903c21d47a007b0136e7c2a7295a254a",
-        NaiveDate::from_ymd_opt(2023, 03, 23).unwrap(),
+        NaiveDate::from_ymd_opt(2023, 3, 23).unwrap(),
         "TestGameC"
     );
     pub static ref TEST_GAME_D: Game = make_test_game(
         "D",
         "atom",
         "04d6c7defa5dd48067cb44a473ac8eeb17f529f5",
-        NaiveDate::from_ymd_opt(2023, 03, 23).unwrap(),
+        NaiveDate::from_ymd_opt(2023, 3, 23).unwrap(),
         "TestGameD"
     );
     pub static ref TEST_GAME_E: Game = make_test_game(
         "E",
         "joeneil",
         "5d4ac1284877c9262df5808b8ab0e922863f9464",
-        NaiveDate::from_ymd_opt(2023, 03, 23).unwrap(),
+        NaiveDate::from_ymd_opt(2023, 3, 23).unwrap(),
         "TestGameE"
     );
     pub static ref TEST_TAG_1: Tag = Tag {

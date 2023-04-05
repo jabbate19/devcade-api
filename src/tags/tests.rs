@@ -1,7 +1,7 @@
 use crate::models::Tag;
 #[cfg(test)]
 use crate::tests::{
-    get_test_server, TEST_TAG_1, TEST_TAG_2, TEST_TAG_3, TEST_TAG_4, TEST_TAG_5, TEST_TAG_6,
+    get_test_server, TEST_TAG_1, TEST_TAG_2, TEST_TAG_3, TEST_TAG_4, TEST_TAG_6,
 };
 
 #[actix_web::test]
@@ -37,7 +37,7 @@ async fn test_edit_tag() {
     edited_tag.name = "NEWNAME2".to_string();
     edited_tag.description = "I changed the description!".to_string();
     let req = srv
-        .put(&format!("/tags/{}", TEST_TAG_2.name))
+        .put(format!("/tags/{}", TEST_TAG_2.name))
         .insert_header(("frontend_api_key", "TESTING"));
     let mut res = req.send_json(&edited_tag).await.unwrap();
     println!(
@@ -54,7 +54,7 @@ async fn test_edit_tag_unauthorized() {
     let mut edited_tag = TEST_TAG_2.clone();
     edited_tag.name = "NEWNAME2".to_string();
     edited_tag.description = "I changed the description!".to_string();
-    let req = srv.put(&format!("/tags/{}", TEST_TAG_2.name));
+    let req = srv.put(format!("/tags/{}", TEST_TAG_2.name));
     let mut res = req.send_json(&edited_tag).await.unwrap();
     println!(
         "{} | {}",
@@ -68,7 +68,7 @@ async fn test_edit_tag_unauthorized() {
 async fn test_delete_tag() {
     let srv = get_test_server().await;
     let req = srv
-        .delete(&format!("/tags/{}", TEST_TAG_3.name))
+        .delete(format!("/tags/{}", TEST_TAG_3.name))
         .insert_header(("frontend_api_key", "TESTING"));
     let mut res = req.send().await.unwrap();
     println!(
@@ -82,7 +82,7 @@ async fn test_delete_tag() {
 #[actix_web::test]
 async fn test_delete_tag_unauthorized() {
     let srv = get_test_server().await;
-    let req = srv.delete(&format!("/tags/{}", TEST_TAG_3.name));
+    let req = srv.delete(format!("/tags/{}", TEST_TAG_3.name));
     let mut res = req.send().await.unwrap();
     println!(
         "{} | {}",
@@ -115,7 +115,7 @@ async fn test_add_tag() {
 async fn test_add_tag_unauthorized() {
     let srv = get_test_server().await;
     let req = srv.post("/tags/");
-    let mut res = req.send_json(&TEST_TAG_6.clone()).await.unwrap();
+    let res = req.send_json(&TEST_TAG_6.clone()).await.unwrap();
     assert_eq!(res.status().as_u16(), 401);
 }
 

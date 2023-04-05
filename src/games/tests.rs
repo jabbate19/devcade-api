@@ -1,18 +1,17 @@
-use std::{fs::File, io::Read, str::Bytes};
+use std::{fs::File, io::Read};
 
 use crate::app::{get_app_data, configure_app};
 #[cfg(test)]
 use crate::{
-    games::routes::GameUpload,
     models::GameWithTags,
     tests::{
         get_test_server, TEST_GAME_A, TEST_GAME_A_WITH_TAGS, TEST_GAME_B, TEST_GAME_B_WITH_TAGS,
         TEST_GAME_C, TEST_GAME_D, TEST_GAME_E,
     },
 };
-use actix_multipart::form::{tempfile::TempFile, text::Text};
-use actix_web::{http::header::ContentType, test, App};
-use tempfile::NamedTempFile;
+
+use actix_web::{test, App};
+
 
 #[derive(Debug)]
 pub struct GameUploadTest {
@@ -54,22 +53,22 @@ impl GameUploadTest {
         out_str.push('\n');
         out_str.push_str("Content-Disposition: form-data; name=\"game\"; filename=\"game.zip\"\r\nContent-Type: application/zip\r\n\r\n");
         let mut out_vec: Vec<u8> = Vec::from(out_str.as_bytes());
-        let mut game_file = &mut self.game;
-        game_file.read_to_end(&mut out_vec);
+        let game_file = &mut self.game;
+        let _ = game_file.read_to_end(&mut out_vec);
         let x = format!(
             "\r\n\r\n{}\r\nContent-Disposition: form-data; name=\"banner\"; filename=\"banner\"\r\nContent-Type: image/png\r\n\r\n",
             boundary
         );
         out_vec.append(&mut Vec::from(x.as_bytes()));
-        let mut banner_file = &mut self.banner;
-        banner_file.read_to_end(&mut out_vec);
+        let banner_file = &mut self.banner;
+        let _ = banner_file.read_to_end(&mut out_vec);
         let x = format!(
             "\r\n\r\n{}\r\nContent-Disposition: form-data; name=\"icon\"; filename=\"icon\"\r\nContent-Type: image/png\r\n\r\n",
             boundary
         );
         out_vec.append(&mut Vec::from(x.as_bytes()));
-        let mut icon_file = &mut self.icon;
-        icon_file.read_to_end(&mut out_vec);
+        let icon_file = &mut self.icon;
+        let _ = icon_file.read_to_end(&mut out_vec);
         let x = format!("\r\n\r\n{}--", boundary);
         out_vec.append(&mut Vec::from(x.as_bytes()));
         out_vec
@@ -92,8 +91,8 @@ impl FileUploadTest {
             mimetype
         ));
         let mut out_vec: Vec<u8> = Vec::from(out_str.as_bytes());
-        let mut file = &mut self.file;
-        file.read_to_end(&mut out_vec);
+        let file = &mut self.file;
+        let _ = file.read_to_end(&mut out_vec);
         let x = format!("\r\n\r\n{}--", boundary);
         out_vec.append(&mut Vec::from(x.as_bytes()));
         out_vec
@@ -116,7 +115,7 @@ async fn test_get_all_games() {
 #[actix_web::test]
 async fn test_get_game_no_tags() {
     let srv = get_test_server().await;
-    let req = srv.get(&format!("/games/{}", TEST_GAME_B.id));
+    let req = srv.get(format!("/games/{}", TEST_GAME_B.id));
     let mut res = req.send().await.unwrap();
     assert!(res.status().is_success());
     let game_data: GameWithTags = res.json::<GameWithTags>().await.unwrap();
@@ -126,7 +125,7 @@ async fn test_get_game_no_tags() {
 #[actix_web::test]
 async fn test_get_game_with_tags() {
     let srv = get_test_server().await;
-    let req = srv.get(&format!("/games/{}", TEST_GAME_A.id));
+    let req = srv.get(format!("/games/{}", TEST_GAME_A.id));
     let mut res = req.send().await.unwrap();
     assert!(res.status().is_success());
     let game_data: GameWithTags = res.json::<GameWithTags>().await.unwrap();
@@ -140,7 +139,7 @@ async fn test_edit_game_data() {
     edited_game.name = "I changed the name!".to_string();
     edited_game.description = "I changed the description!".to_string();
     let req = srv
-        .put(&format!("/games/{}", edited_game.id))
+        .put(format!("/games/{}", edited_game.id))
         .insert_header(("frontend_api_key", "TESTING"));
     let mut res = req.send_json(&edited_game).await.unwrap();
     println!(
@@ -157,7 +156,7 @@ async fn test_edit_game_data_unauthorized() {
     let mut edited_game = TEST_GAME_C.clone();
     edited_game.name = "I changed the name!".to_string();
     edited_game.description = "I changed the description!".to_string();
-    let req = srv.put(&format!("/games/{}", edited_game.id));
+    let req = srv.put(format!("/games/{}", edited_game.id));
     let mut res = req.send_json(&edited_game).await.unwrap();
     println!(
         "{} | {}",
@@ -171,16 +170,16 @@ async fn test_edit_game_data_unauthorized() {
 async fn test_delete_game() {
     let srv = get_test_server().await;
     let req = srv
-        .delete(&format!("/games/{}", TEST_GAME_D.id))
+        .delete(format!("/games/{}", TEST_GAME_D.id))
         .insert_header(("frontend_api_key", "TESTING"));
-    let mut res = req.send().await.unwrap();
+    let res = req.send().await.unwrap();
     assert!(res.status().is_success());
 }
 
 #[actix_web::test]
 async fn test_delete_game_unauthorized() {
     let srv = get_test_server().await;
-    let req = srv.delete(&format!("/games/{}", TEST_GAME_D.id));
+    let req = srv.delete(format!("/games/{}", TEST_GAME_D.id));
     let mut res = req.send().await.unwrap();
     println!(
         "{} | {}",
@@ -270,7 +269,7 @@ async fn test_add_game_unauthorized() {
 #[actix_web::test]
 async fn test_get_game_binary() {
     let srv = get_test_server().await;
-    let req = srv.get(&format!("/games/{}/game", TEST_GAME_E.id));
+    let req = srv.get(format!("/games/{}/game", TEST_GAME_E.id));
     let mut res = req.send().await.unwrap();
     println!(
         "{} | {}",
@@ -344,7 +343,7 @@ async fn test_edit_game_binary_unauthorized() {
 #[actix_web::test]
 async fn test_get_game_banner() {
     let srv = get_test_server().await;
-    let req = srv.get(&format!("/games/{}/banner", TEST_GAME_E.id));
+    let req = srv.get(format!("/games/{}/banner", TEST_GAME_E.id));
     let mut res = req.send().await.unwrap();
     println!(
         "{} | {}",
@@ -418,7 +417,7 @@ async fn test_edit_game_banner_unauthorized() {
 #[actix_web::test]
 async fn test_get_game_icon() {
     let srv = get_test_server().await;
-    let req = srv.get(&format!("/games/{}/icon", TEST_GAME_E.id));
+    let req = srv.get(format!("/games/{}/icon", TEST_GAME_E.id));
     let mut res = req.send().await.unwrap();
     println!(
         "{} | {}",

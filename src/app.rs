@@ -4,15 +4,14 @@ use crate::{
     tags::routes as tags,
     users::routes as users,
 };
-use actix_test::TestServer;
+
 use actix_web::{
     web::{self, scope, Data},
-    App,
 };
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::Endpoint;
-use chrono::NaiveDate;
-use lazy_static::lazy_static;
+
+
 use sqlx::postgres::PgPoolOptions;
 use std::env;
 use utoipa::{
@@ -98,7 +97,7 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
             .service(users::add_user)
             .service(users::edit_user),
     )
-    .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi.clone()));
+    .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi));
 }
 
 pub async fn get_app_data() -> Data<AppState> {
@@ -121,7 +120,7 @@ pub async fn get_app_data() -> Data<AppState> {
         .await
         .unwrap();
     Data::new(AppState {
-        db: pool.clone(),
+        db: pool,
         s3: s3_conn.clone(),
     })
 }

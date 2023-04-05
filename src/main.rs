@@ -2,25 +2,17 @@ use actix_cors::Cors;
 use actix_web::{
     http,
     middleware::Logger,
-    web::{scope, Data},
     App, HttpServer,
 };
-use aws_sdk_s3 as s3;
-use aws_sdk_s3::Endpoint;
+
+
 use devcade_api_rs::{
-    games::routes::{self as games, FileUploadDoc, GameData, GameUploadDoc},
-    models::{AppState, Game, GameWithTags, Tag, User, UserType},
-    tags::routes as tags,
-    users::routes as users,
-    app::{self, configure_app, get_app_data},
+    app::{configure_app, get_app_data},
 };
-use sqlx::postgres::PgPoolOptions;
+
 use std::env;
-use utoipa::{
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify, OpenApi,
-};
-use utoipa_swagger_ui::SwaggerUi;
+
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
