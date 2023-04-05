@@ -210,8 +210,8 @@ async fn verify_and_upload(
     uuid: Option<String>,
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
     let (uuid, hash) = verify_and_upload_game(game, s3, uuid).await?;
-    let _ = verify_and_upload_image(banner, s3, ImageComponent::Banner, &uuid).await?;
-    let _ = verify_and_upload_image(icon, s3, ImageComponent::Icon, &uuid).await?;
+    verify_and_upload_image(banner, s3, ImageComponent::Banner, &uuid).await?;
+    verify_and_upload_image(icon, s3, ImageComponent::Icon, &uuid).await?;
     Ok((uuid, hash))
 }
 

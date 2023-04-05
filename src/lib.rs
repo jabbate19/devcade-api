@@ -5,3 +5,4 @@ pub mod tags;
 #[cfg(test)]
 pub mod tests;
 pub mod users;
+pub mod app;

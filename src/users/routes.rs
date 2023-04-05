@@ -29,7 +29,7 @@ pub async fn add_user(state: Data<AppState>, user: Json<User>) -> impl Responder
         .bind(&user.first_name)
         .bind(&user.last_name)
         .bind(&user.picture)
-        .bind(&user.admin)
+        .bind(user.admin)
         .bind(&user.email)
         .execute(&state.db)
         .await
@@ -98,7 +98,7 @@ pub async fn edit_user(
         .bind(&user.first_name)
         .bind(&user.last_name)
         .bind(&user.picture)
-        .bind(&user.admin)
+        .bind(user.admin)
         .bind(&user.email)
         .bind(uid)
         .execute(&state.db)

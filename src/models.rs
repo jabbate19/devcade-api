@@ -58,10 +58,10 @@ impl GameWithTags {
         GameWithTags {
             id: game.id.clone(),
             author: game.author.clone(),
-            upload_date: game.upload_date.clone(),
+            upload_date: game.upload_date,
             name: game.name.clone(),
             hash: game.hash.clone(),
-            description: game.description.clone(),
+            description: game.description,
             tags,
             user,
         }

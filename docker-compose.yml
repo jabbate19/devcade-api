@@ -1,0 +1,51 @@
+version: '3.3'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: devcade
+      POSTGRES_USER: devcade
+      POSTGRES_PASSWORD: devcade
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./TESTING/create_db.sql:/docker-entrypoint-initdb.d/create_tables.sql
+    networks:
+      - test
+  minio:
+    image: minio
+    build:
+      context: ./TESTING/
+      dockerfile: ./Dockerfile.minio
+    environment:
+      - MINIO_ROOT_USER=DEVCADE1234
+      - MINIO_ROOT_PASSWORD=DEVCADE1234
+      - MINIO_BUCKET=devcade
+    #command: server --console-address ":9001" /data
+    ports:
+      - 9000:9000
+      - 9001:9001
+    networks:
+      - test
+  devcade-api:
+    image: devcade-api
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - SQL_URI=postgres://devcade:devcade@postgres/devcade?currentSchema=public
+      - FRONTEND_API_KEY=TESTING
+      - S3_GAMES_BUCKET=devcade
+      - S3_ENDPOINT=http://minio:9000
+      - AWS_ACCESS_KEY_ID=DEVCADE1234
+      - AWS_SECRET_ACCESS_KEY=DEVCADE1234
+      - AWS_DEFAULT_REGION=us-east-1
+      - DOMAIN=localhost
+    ports:
+      - 8080:8080
+    networks:
+      - test
+    depends_on:
+      - minio
+      - postgres
+networks:
+  test:
