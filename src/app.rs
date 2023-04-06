@@ -5,12 +5,9 @@ use crate::{
     users::routes as users,
 };
 
-use actix_web::{
-    web::{self, scope, Data},
-};
+use actix_web::web::{self, scope, Data};
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::Endpoint;
-
 
 use sqlx::postgres::PgPoolOptions;
 use std::env;

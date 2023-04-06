@@ -56,6 +56,7 @@ pub struct GameData {
     description: String,
     #[schema(example = "ella")]
     author: String,
+    tags: Vec<String>,
 }
 
 #[derive(Debug, MultipartForm)]
@@ -66,6 +67,7 @@ pub struct GameUpload {
     pub title: Text<String>,
     pub description: Text<String>,
     pub author: Text<String>,
+    pub tags: Text<String>,
 }
 
 #[allow(dead_code)]
@@ -80,6 +82,7 @@ pub struct GameUploadDoc {
     title: String,
     description: String,
     author: String,
+    tags: Vec<String>,
 }
 
 #[derive(Debug, MultipartForm)]
@@ -246,14 +249,29 @@ pub async fn add_game(
                 .execute(&state.db)
                 .await
             {
-                Ok(_) => HttpResponse::Created().json(Game {
-                    id: uuid,
-                    author: form.author.clone(),
-                    upload_date: date,
-                    name: form.title.clone(),
-                    hash,
-                    description: form.description.clone(),
-                }),
+                Ok(_) => {
+                    for tag_name in form.tags.split(',') {
+                        if tag_name.len() == 0 {
+                            continue;
+                        }
+                        if let Err(e) = query("INSERT INTO game_tags VALUES ($1, $2)")
+                            .bind(&uuid)
+                            .bind(tag_name)
+                            .execute(&state.db)
+                            .await
+                        {
+                            return HttpResponse::BadRequest().body(e.to_string());
+                        }
+                    }
+                    HttpResponse::Created().json(Game {
+                        id: uuid,
+                        author: form.author.clone(),
+                        upload_date: date,
+                        name: form.title.clone(),
+                        hash,
+                        description: form.description.clone(),
+                    })
+                }
                 Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
         }
@@ -314,9 +332,10 @@ pub async fn edit_game(
     game_data: Json<GameData>,
 ) -> impl Responder {
     let (id,) = path.into_inner();
+    let mut transaction = state.db.begin().await.unwrap();
     match query_as::<_, Game>("SELECT * FROM game WHERE id = $1")
         .bind(&id)
-        .fetch_one(&state.db)
+        .fetch_one(&mut transaction)
         .await
     {
         Ok(game) => {
@@ -324,21 +343,48 @@ pub async fn edit_game(
                 .bind(game_data.name.clone())
                 .bind(game_data.description.clone())
                 .bind(&id)
-                .execute(&state.db)
+                .execute(&mut transaction)
                 .await
             {
-                Ok(_) => HttpResponse::Ok().json(Game {
-                    id,
-                    author: game.author,
-                    upload_date: game.upload_date,
-                    name: game_data.name.clone(),
-                    hash: game.hash,
-                    description: game_data.description.clone(),
-                }),
-                Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                Ok(_) => {
+                    if let Err(e) = query("DELETE FROM game_tags WHERE game_id =  $1")
+                            .bind(&id)
+                            .execute(&mut transaction)
+                            .await {
+                                let _ = transaction.rollback();
+                                return HttpResponse::InternalServerError().body(e.to_string());
+                            };
+                    for tag_name in game_data.tags.clone() {
+                        if let Err(e) = query("INSERT INTO game_tags VALUES ($1, $2)")
+                            .bind(&id)
+                            .bind(tag_name)
+                            .execute(&mut transaction)
+                            .await
+                        {
+                            let _ = transaction.rollback();
+                            return HttpResponse::BadRequest().body(e.to_string());
+                        }
+                    }
+                    let _ = transaction.commit();
+                    HttpResponse::Ok().json(Game {
+                        id,
+                        author: game.author,
+                        upload_date: game.upload_date,
+                        name: game_data.name.clone(),
+                        hash: game.hash,
+                        description: game_data.description.clone(),
+                    })
+                },
+                Err(e) => {
+                    let _ = transaction.rollback();
+                    HttpResponse::InternalServerError().body(e.to_string())
+                },
             }
         }
-        Err(_) => HttpResponse::BadRequest().body("Game ID Does Not Exist"),
+        Err(_) => {
+            let _ = transaction.rollback();
+            HttpResponse::BadRequest().body("Game ID Does Not Exist")
+        },
     }
 }
 

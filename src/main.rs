@@ -1,18 +1,9 @@
 use actix_cors::Cors;
-use actix_web::{
-    http,
-    middleware::Logger,
-    App, HttpServer,
-};
+use actix_web::{http, middleware::Logger, App, HttpServer};
 
-
-use devcade_api_rs::{
-    app::{configure_app, get_app_data},
-};
+use devcade_api_rs::app::{configure_app, get_app_data};
 
 use std::env;
-
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

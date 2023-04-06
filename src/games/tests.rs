@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read};
 
-use crate::app::{get_app_data, configure_app};
+use crate::app::{configure_app, get_app_data};
 #[cfg(test)]
 use crate::{
     models::GameWithTags,
@@ -11,7 +11,6 @@ use crate::{
 };
 
 use actix_web::{test, App};
-
 
 #[derive(Debug)]
 pub struct GameUploadTest {
@@ -219,8 +218,8 @@ async fn test_add_game() {
             "mutlipart/form-data; boundary=----------------43123453263245325234",
         ))
         .append_header(("Content-Length", payload.len()))
-        .append_header(("Accept-Encoding","gzip, deflate, br"))
-        .append_header(("Accept","*/*"))
+        .append_header(("Accept-Encoding", "gzip, deflate, br"))
+        .append_header(("Accept", "*/*"))
         .set_payload(payload)
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -257,8 +256,8 @@ async fn test_add_game_unauthorized() {
             "mutlipart/form-data; boundary=----------------43123453263245325234",
         ))
         .append_header(("Content-Length", payload.len()))
-        .append_header(("Accept-Encoding","gzip, deflate, br"))
-        .append_header(("Accept","*/*"))
+        .append_header(("Accept-Encoding", "gzip, deflate, br"))
+        .append_header(("Accept", "*/*"))
         .set_payload(payload)
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -282,9 +281,7 @@ async fn test_get_game_binary() {
 #[actix_web::test]
 async fn test_edit_game_binary() {
     let gamefile = File::open("TESTING/data/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH.zip").unwrap();
-    let mut fileupload = FileUploadTest {
-        file: gamefile,
-    };
+    let mut fileupload = FileUploadTest { file: gamefile };
     let app_data = get_app_data().await;
     let app = test::init_service(
         App::new()
@@ -292,7 +289,8 @@ async fn test_edit_game_binary() {
             .app_data(app_data.clone()),
     )
     .await;
-    let payload = fileupload.to_payload("------------------43123453263245325234", "application/zip");
+    let payload =
+        fileupload.to_payload("------------------43123453263245325234", "application/zip");
     let req = test::TestRequest::put()
         .uri("/games/GGGGGGGG-GGGG-GGGG-GGGG-GGGGGGGGGGGG/game")
         .append_header(("frontend_api_key", "TESTING"))
@@ -301,8 +299,8 @@ async fn test_edit_game_binary() {
             "mutlipart/form-data; boundary=----------------43123453263245325234",
         ))
         .append_header(("Content-Length", payload.len()))
-        .append_header(("Accept-Encoding","gzip, deflate, br"))
-        .append_header(("Accept","*/*"))
+        .append_header(("Accept-Encoding", "gzip, deflate, br"))
+        .append_header(("Accept", "*/*"))
         .set_payload(payload)
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -313,9 +311,7 @@ async fn test_edit_game_binary() {
 #[actix_web::test]
 async fn test_edit_game_binary_unauthorized() {
     let gamefile = File::open("TESTING/data/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH.zip").unwrap();
-    let mut fileupload = FileUploadTest {
-        file: gamefile,
-    };
+    let mut fileupload = FileUploadTest { file: gamefile };
     let app_data = get_app_data().await;
     let app = test::init_service(
         App::new()
@@ -323,7 +319,8 @@ async fn test_edit_game_binary_unauthorized() {
             .app_data(app_data.clone()),
     )
     .await;
-    let payload = fileupload.to_payload("------------------43123453263245325234", "application/zip");
+    let payload =
+        fileupload.to_payload("------------------43123453263245325234", "application/zip");
     let req = test::TestRequest::put()
         .uri("/games/GGGGGGGG-GGGG-GGGG-GGGG-GGGGGGGGGGGG/game")
         .append_header((
@@ -331,8 +328,8 @@ async fn test_edit_game_binary_unauthorized() {
             "mutlipart/form-data; boundary=----------------43123453263245325234",
         ))
         .append_header(("Content-Length", payload.len()))
-        .append_header(("Accept-Encoding","gzip, deflate, br"))
-        .append_header(("Accept","*/*"))
+        .append_header(("Accept-Encoding", "gzip, deflate, br"))
+        .append_header(("Accept", "*/*"))
         .set_payload(payload)
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -355,10 +352,9 @@ async fn test_get_game_banner() {
 
 #[actix_web::test]
 async fn test_edit_game_banner() {
-    let bannerfile = File::open("TESTING/data/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH/banner").unwrap();
-    let mut fileupload = FileUploadTest {
-        file: bannerfile,
-    };
+    let bannerfile =
+        File::open("TESTING/data/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH/banner").unwrap();
+    let mut fileupload = FileUploadTest { file: bannerfile };
     let app_data = get_app_data().await;
     let app = test::init_service(
         App::new()
@@ -375,8 +371,8 @@ async fn test_edit_game_banner() {
             "mutlipart/form-data; boundary=----------------43123453263245325234",
         ))
         .append_header(("Content-Length", payload.len()))
-        .append_header(("Accept-Encoding","gzip, deflate, br"))
-        .append_header(("Accept","*/*"))
+        .append_header(("Accept-Encoding", "gzip, deflate, br"))
+        .append_header(("Accept", "*/*"))
         .set_payload(payload)
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -386,10 +382,9 @@ async fn test_edit_game_banner() {
 
 #[actix_web::test]
 async fn test_edit_game_banner_unauthorized() {
-    let bannerfile = File::open("TESTING/data/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH/banner").unwrap();
-    let mut fileupload = FileUploadTest {
-        file: bannerfile,
-    };
+    let bannerfile =
+        File::open("TESTING/data/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH/banner").unwrap();
+    let mut fileupload = FileUploadTest { file: bannerfile };
     let app_data = get_app_data().await;
     let app = test::init_service(
         App::new()
@@ -405,8 +400,8 @@ async fn test_edit_game_banner_unauthorized() {
             "mutlipart/form-data; boundary=----------------43123453263245325234",
         ))
         .append_header(("Content-Length", payload.len()))
-        .append_header(("Accept-Encoding","gzip, deflate, br"))
-        .append_header(("Accept","*/*"))
+        .append_header(("Accept-Encoding", "gzip, deflate, br"))
+        .append_header(("Accept", "*/*"))
         .set_payload(payload)
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -430,9 +425,7 @@ async fn test_get_game_icon() {
 #[actix_web::test]
 async fn test_edit_game_icon() {
     let iconfile = File::open("TESTING/data/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH/icon").unwrap();
-    let mut fileupload = FileUploadTest {
-        file: iconfile,
-    };
+    let mut fileupload = FileUploadTest { file: iconfile };
     let app_data = get_app_data().await;
     let app = test::init_service(
         App::new()
@@ -449,8 +442,8 @@ async fn test_edit_game_icon() {
             "mutlipart/form-data; boundary=----------------43123453263245325234",
         ))
         .append_header(("Content-Length", payload.len()))
-        .append_header(("Accept-Encoding","gzip, deflate, br"))
-        .append_header(("Accept","*/*"))
+        .append_header(("Accept-Encoding", "gzip, deflate, br"))
+        .append_header(("Accept", "*/*"))
         .set_payload(payload)
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -461,9 +454,7 @@ async fn test_edit_game_icon() {
 #[actix_web::test]
 async fn test_edit_game_icon_unauthorized() {
     let iconfile = File::open("TESTING/data/HHHHHHHH-HHHH-HHHH-HHHH-HHHHHHHHHHHH/icon").unwrap();
-    let mut fileupload = FileUploadTest {
-        file: iconfile,
-    };
+    let mut fileupload = FileUploadTest { file: iconfile };
     let app_data = get_app_data().await;
     let app = test::init_service(
         App::new()
@@ -479,8 +470,8 @@ async fn test_edit_game_icon_unauthorized() {
             "mutlipart/form-data; boundary=----------------43123453263245325234",
         ))
         .append_header(("Content-Length", payload.len()))
-        .append_header(("Accept-Encoding","gzip, deflate, br"))
-        .append_header(("Accept","*/*"))
+        .append_header(("Accept-Encoding", "gzip, deflate, br"))
+        .append_header(("Accept", "*/*"))
         .set_payload(payload)
         .to_request();
     let resp = test::call_service(&app, req).await;

@@ -1,18 +1,12 @@
 use crate::{
-    models::{Game, GameWithTags, Tag, User}, app::{get_app_data, configure_app},
+    app::{configure_app, get_app_data},
+    models::{Game, GameWithTags, Tag, User},
 };
 use actix_test::TestServer;
-use actix_web::{
-    App,
-};
-
+use actix_web::App;
 
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
-
-
-
-
 
 lazy_static! {
     pub static ref TEST_GAME_A: Game = make_test_game(
