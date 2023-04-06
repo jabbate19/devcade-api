@@ -251,7 +251,7 @@ pub async fn add_game(
             {
                 Ok(_) => {
                     for tag_name in form.tags.split(',') {
-                        if tag_name.len() == 0 {
+                        if tag_name.is_empty() {
                             continue;
                         }
                         if let Err(e) = query("INSERT INTO game_tags VALUES ($1, $2)")
@@ -351,7 +351,7 @@ pub async fn edit_game(
                             .bind(&id)
                             .execute(&mut transaction)
                             .await {
-                                let _ = transaction.rollback();
+                                let _ = transaction.rollback().await;
                                 return HttpResponse::InternalServerError().body(e.to_string());
                             };
                     for tag_name in game_data.tags.clone() {
@@ -361,11 +361,11 @@ pub async fn edit_game(
                             .execute(&mut transaction)
                             .await
                         {
-                            let _ = transaction.rollback();
+                            let _ = transaction.rollback().await;
                             return HttpResponse::BadRequest().body(e.to_string());
                         }
                     }
-                    let _ = transaction.commit();
+                    let _ = transaction.commit().await;
                     HttpResponse::Ok().json(Game {
                         id,
                         author: game.author,
@@ -376,13 +376,13 @@ pub async fn edit_game(
                     })
                 },
                 Err(e) => {
-                    let _ = transaction.rollback();
+                    let _ = transaction.rollback().await;
                     HttpResponse::InternalServerError().body(e.to_string())
                 },
             }
         }
         Err(_) => {
-            let _ = transaction.rollback();
+            let _ = transaction.rollback().await;
             HttpResponse::BadRequest().body("Game ID Does Not Exist")
         },
     }
