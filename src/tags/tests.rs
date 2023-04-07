@@ -1,8 +1,6 @@
 use crate::models::Tag;
 #[cfg(test)]
-use crate::tests::{
-    get_test_server, TEST_TAG_1, TEST_TAG_2, TEST_TAG_3, TEST_TAG_4, TEST_TAG_6,
-};
+use crate::tests::{get_test_server, TEST_TAG_1, TEST_TAG_2, TEST_TAG_3, TEST_TAG_4, TEST_TAG_6};
 
 #[actix_web::test]
 async fn test_get_all_tags() {
