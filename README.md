@@ -18,8 +18,7 @@ Source code can be found at: https://github.com/ComputerScienceHouse/devcade-api
 
 ```
 # Express API Environment Variables
-API_PORT=<api port>
-    
+API_PORT=<api port>    
 ````
 
 PSQL_PORT= PSQL_USER= PSQL_PASS= PSQL_URI=
