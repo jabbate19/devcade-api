@@ -66,35 +66,38 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
 
     let openapi = ApiDoc::openapi();
     cfg.service(
-        scope("/games")
-            .service(games::get_all_games)
-            .service(games::get_game)
-            .service(games::edit_game)
-            .service(games::delete_game)
-            .service(games::add_game)
-            .service(games::get_binary)
-            .service(games::update_binary)
-            .service(games::get_banner)
-            .service(games::update_banner)
-            .service(games::get_icon)
-            .service(games::update_icon),
-    )
-    .service(
-        scope("/tags")
-            .service(tags::get_all_tags)
-            .service(tags::get_tag)
-            .service(tags::edit_tag)
-            .service(tags::delete_tag)
-            .service(tags::add_tag)
-            .service(tags::get_tag_games),
-    )
-    .service(
-        scope("/users")
-            .service(users::get_user)
-            .service(users::add_user)
-            .service(users::edit_user),
-    )
-    .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi));
+        scope("/api")
+            .service(
+                scope("/games")
+                    .service(games::get_all_games)
+                    .service(games::get_game)
+                    .service(games::edit_game)
+                    .service(games::delete_game)
+                    .service(games::add_game)
+                    .service(games::get_binary)
+                    .service(games::update_binary)
+                    .service(games::get_banner)
+                    .service(games::update_banner)
+                    .service(games::get_icon)
+                    .service(games::update_icon),
+            )
+            .service(
+                scope("/tags")
+                    .service(tags::get_all_tags)
+                    .service(tags::get_tag)
+                    .service(tags::edit_tag)
+                    .service(tags::delete_tag)
+                    .service(tags::add_tag)
+                    .service(tags::get_tag_games),
+            )
+            .service(
+                scope("/users")
+                    .service(users::get_user)
+                    .service(users::add_user)
+                    .service(users::edit_user),
+            )
+            .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", openapi)),
+    );
 }
 
 pub async fn get_app_data() -> Data<AppState> {
