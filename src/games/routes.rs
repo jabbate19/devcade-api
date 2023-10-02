@@ -2,8 +2,6 @@ use crate::{
     models::{AppState, Game, GameWithTags},
     security::RequireApiKey,
 };
-use image::{load_from_memory, imageops, ImageBuffer};
-use bytes::Bytes;
 use actix_multipart::form::{tempfile::TempFile, text::Text, MultipartForm};
 use actix_web::{
     delete, get, post, put,
@@ -21,7 +19,7 @@ use std::{
     error::Error,
     fmt,
     fs::File,
-    io::{BufReader, Read, Cursor},
+    io::{BufReader, Read},
 };
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -192,9 +190,6 @@ async fn verify_and_upload_image(
             image_type
         ))));
     }
-    let image_buffer = Vec::new();
-    let mut cursor = Cursor::new(image_buffer);
-    imageops::resize(&load_from_memory(&ByteStream::from_path(image.file.path()).await?.collect().await?.into_bytes(),)?,match image_type {ImageComponent::Icon => 150, ImageComponent::Banner => 850,},match image_type {ImageComponent::Icon => 150, ImageComponent::Banner => 400,}, imageops::FilterType::Lanczos3,).write_to(&mut cursor, image::ImageFormat::Png)?;
     let _ = s3
         .put_object()
         .key(format!(
@@ -203,26 +198,7 @@ async fn verify_and_upload_image(
             image_type.filename(),
             //image_content_type.subtype()
         ))
-        .body(
-            ByteStream::from(
-                Bytes::copy_from_slice(
-                    ImageBuffer::into_raw(
-                        imageops::resize(
-                            &load_from_memory(&ByteStream::from_path(image.file.path()).await?.collect().await?.into_bytes())?,
-                            match image_type {
-                                ImageComponent::Banner => 850,
-                                ImageComponent::Icon => 150,
-                            },
-                            match image_type {
-                                ImageComponent::Banner => 400,
-                                ImageComponent::Icon => 150,
-                            },
-                            imageops::FilterType::Lanczos3
-                        )
-                    ).as_slice()
-                )
-            )
-        )
+        .body(ByteStream::from_path(image.file.path()).await?)
         .bucket(&GAMES_BUCKET.to_string())
         .send()
         .await?;
